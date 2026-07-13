@@ -1,0 +1,16 @@
+{
+  "actorSpecification": 1,
+  "name": "socialcrawl-unified-social-media-api",
+  "title": "SocialCrawl — Unified Social Media Data API",
+  "description": "One API key for 44 social, commerce, app-store, review, places & travel, web-scraping, and web-research platforms across 357 endpoints, plus universal cross-platform social search and Prism composites — behind one unified response envelope.",
+  "version": "1.1",
+  "buildTag": "latest",
+  "dockerfile": "../Dockerfile",
+  "readme": "../README.md",
+  "input": "./input_schema.json",
+  "storages": {
+    "dataset": "./dataset_schema.json"
+  },
+  "minMemoryMbytes": 128,
+  "maxMemoryMbytes": 1024
+}

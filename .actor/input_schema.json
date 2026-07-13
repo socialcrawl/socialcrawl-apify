@@ -1,0 +1,96 @@
+{
+  "title": "SocialCrawl — Unified Social Media Data API",
+  "description": "Call any of 357 SocialCrawl endpoints across 44 platforms, run a universal cross-platform social search, trigger a Prism composite, or drive the web-scraping suite — all with your own SocialCrawl API key. Pick a platform and resource, add parameters, and run.",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "apiKey": {
+      "title": "SocialCrawl API key",
+      "type": "string",
+      "description": "Your SocialCrawl API key (looks like `sc_…`). Get one free — 100 credits, no credit card — at https://www.socialcrawl.dev. Required for 'Run API request' and 'Check credit balance'.",
+      "editor": "textfield",
+      "isSecret": true
+    },
+    "action": {
+      "title": "Action",
+      "type": "string",
+      "description": "What the Actor should do. 'Run API request' is the default. The two 'List…' actions work without an API key and help you discover what's available.",
+      "editor": "select",
+      "default": "request",
+      "enum": ["request", "listPlatforms", "listEndpoints", "listPricing", "checkBalance"],
+      "enumTitles": [
+        "Run API request",
+        "List platforms (no key needed)",
+        "List endpoints for a platform (no key needed)",
+        "List pricing for endpoints (no key needed)",
+        "Check credit balance"
+      ]
+    },
+    "platform": {
+      "title": "Platform",
+      "type": "string",
+      "description": "The platform to query. Choose 'Universal Search' to fan out across many social platforms in one call.",
+      "editor": "select",
+      "default": "tiktok",
+      "enum": [
+        "tiktok", "instagram", "youtube", "twitter", "linkedin", "facebook",
+        "reddit", "threads", "pinterest", "twitch", "snapchat", "truthsocial",
+        "kick", "kwai", "tiktokshop", "perplexity", "google", "amazon",
+        "google_shopping", "google_news", "google_finance", "google_trends",
+        "trustpilot", "google_play", "app_store", "tripadvisor", "utility",
+        "linktree", "linkbio", "linkme", "komi", "pillar", "polymarket",
+        "hackernews", "github", "tavily", "naver", "rumble", "bluesky",
+        "spotify", "web", "search", "prism", "content_analysis"
+      ],
+      "enumTitles": [
+        "TikTok", "Instagram", "YouTube", "Twitter/X", "LinkedIn", "Facebook",
+        "Reddit", "Threads", "Pinterest", "Twitch", "Snapchat", "Truth Social",
+        "Kick", "Kwai", "TikTok Shop", "Perplexity", "Google", "Amazon",
+        "Google Shopping", "Google News", "Google Finance", "Google Trends",
+        "Trustpilot", "Google Play", "Apple App Store", "Tripadvisor", "Utility",
+        "Linktree", "LinkBio", "LinkMe", "Komi", "Pillar", "Polymarket",
+        "Hacker News", "GitHub", "Tavily", "Naver", "Rumble", "Bluesky",
+        "Spotify", "Web Scraping", "Universal Search", "Prism", "Content Analysis"
+      ]
+    },
+    "resource": {
+      "title": "Resource (endpoint)",
+      "type": "string",
+      "description": "The endpoint to call on the chosen platform, e.g. `profile`, `profile/videos`, `video/comments`. For Universal Search use `everywhere`. Not sure? Run with action 'List endpoints' first.",
+      "editor": "textfield",
+      "default": "profile",
+      "prefill": "profile"
+    },
+    "method": {
+      "title": "HTTP method (optional)",
+      "type": "string",
+      "description": "Leave blank for the default — almost every endpoint is GET and resolves automatically. Only set this for the stateful Web Scraping routes that share one resource across several verbs (e.g. `monitors/{monitor_id}` is GET, PATCH, or DELETE). For path-template resources, supply the id (e.g. `job_id`, `monitor_id`, `session_id`) as a normal parameter.",
+      "editor": "select",
+      "default": "",
+      "enum": ["", "GET", "POST", "PATCH", "DELETE"],
+      "enumTitles": ["Auto (GET / resource default)", "GET", "POST", "PATCH", "DELETE"]
+    },
+    "params": {
+      "title": "Parameters",
+      "type": "object",
+      "description": "Query parameters as key–value pairs, e.g. {\"handle\": \"charlidamelio\"} for a TikTok profile, {\"url\": \"https://...\"} for comments, or {\"query\": \"electric cars\"} for Universal Search. Values are sent verbatim.",
+      "editor": "json",
+      "prefill": { "handle": "charlidamelio" }
+    },
+    "idempotencyKey": {
+      "title": "Idempotency key (optional)",
+      "type": "string",
+      "description": "Optional. An opaque, client-generated string (UUIDv4 recommended). Reusing it within 24h replays the original response and charges 0 new credits — safe for retries.",
+      "editor": "textfield",
+      "sectionCaption": "Advanced"
+    },
+    "baseUrl": {
+      "title": "API base URL (optional)",
+      "type": "string",
+      "description": "Advanced — override the API origin. Defaults to https://www.socialcrawl.dev. Leave blank unless you have a reason to change it.",
+      "editor": "textfield",
+      "default": ""
+    }
+  },
+  "required": []
+}

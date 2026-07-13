@@ -1,0 +1,32 @@
+{
+  "name": "socialcrawl-apify",
+  "version": "1.1.0",
+  "description": "Apify Actor for SocialCrawl — one API key for 42 social, commerce, app-store, review, places & travel, and web-research platforms across 323 endpoints, plus universal cross-platform social search and Prism composites, all behind one unified response envelope.",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "npm run start:prod",
+    "start:prod": "node dist/main.js",
+    "start:dev": "tsx src/main.ts",
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "generate:data": "tsx scripts/generate-data.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "apify": "^3.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^3.1.1"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RidioDevelopment/socialcrawl-apify"
+  }
+}

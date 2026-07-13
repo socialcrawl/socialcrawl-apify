@@ -1,0 +1,12 @@
+{
+  "actorSpecification": 1,
+  "views": {
+    "overview": {
+      "title": "Results",
+      "description": "Items returned by the SocialCrawl API call. Credit and request metadata are attached on each row under `_sc_`-prefixed fields. The complete, untouched API envelope is also saved to the run's key-value store as OUTPUT.",
+      "display": {
+        "component": "table"
+      }
+    }
+  }
+}
