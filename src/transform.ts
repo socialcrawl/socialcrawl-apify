@@ -1,6 +1,6 @@
 import type { SocialCrawlSuccessResponse } from "./types.js";
 
-/** Coerce an arbitrary params object into the string map the API expects. */
+/** Coerce an arbitrary params object into the string map a query string expects. */
 export function stringifyParams(
   raw: Record<string, unknown> | undefined,
 ): Record<string, string> {
@@ -15,8 +15,9 @@ export function stringifyParams(
 
 /**
  * Drop empty (undefined/null/"") values but PRESERVE types — so a POST/PATCH
- * JSON body keeps its numbers, booleans, and arrays (e.g. web/crawl `limit`,
- * `formats`) instead of stringifying them the way a query string would.
+ * JSON body keeps its numbers, booleans, arrays, and nested objects (e.g.
+ * web/crawl `limit` and `formats`, or a monitor's `alert_rules`) instead of
+ * stringifying them the way a query string would.
  */
 export function cleanParams(
   raw: Record<string, unknown> | undefined,
@@ -30,10 +31,16 @@ export function cleanParams(
   return out;
 }
 
+export interface RowMetaOptions {
+  /** 0-based page index, set when a run walked more than one page. */
+  pageIndex?: number;
+}
+
 /**
  * Flattens an API envelope into dataset rows. List responses become one row per
- * item; single-object responses become one row. Credit/meta fields are attached
- * under `_sc_`-prefixed keys so they never collide with platform data fields.
+ * item; single-object responses become one row. Credit/request metadata is
+ * attached under `_sc_`-prefixed keys so it never collides with platform data
+ * fields.
  */
 export function rowsFromEnvelope(
   platform: string,
@@ -41,8 +48,9 @@ export function rowsFromEnvelope(
   envelope: SocialCrawlSuccessResponse | null,
   raw: string,
   endpointPath?: string,
+  options: RowMetaOptions = {},
 ): Record<string, unknown>[] {
-  const meta = {
+  const meta: Record<string, unknown> = {
     _sc_platform: platform,
     _sc_endpoint: endpointPath ?? `/v1/${platform}/${resource}`,
     _sc_credits_used: envelope?.credits_used ?? null,
@@ -50,6 +58,7 @@ export function rowsFromEnvelope(
     _sc_request_id: envelope?.request_id ?? null,
     _sc_cached: envelope?.cached ?? null,
   };
+  if (options.pageIndex !== undefined) meta._sc_page = options.pageIndex + 1;
 
   const data: unknown = envelope ? envelope.data : safeParse(raw);
 

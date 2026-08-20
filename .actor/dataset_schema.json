@@ -3,7 +3,7 @@
   "views": {
     "overview": {
       "title": "Results",
-      "description": "Items returned by the SocialCrawl API call. Credit and request metadata are attached on each row under `_sc_`-prefixed fields. The complete, untouched API envelope is also saved to the run's key-value store as OUTPUT.",
+      "description": "Items returned by the SocialCrawl API call. Credit and request metadata are attached on each row under `_sc_`-prefixed fields (`_sc_credits_used`, `_sc_credits_remaining`, `_sc_request_id`, `_sc_cached`, and `_sc_page` when auto-paginating). The complete, untouched API envelope is also saved to the run's key-value store as OUTPUT.",
       "display": {
         "component": "table"
       }

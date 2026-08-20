@@ -1,7 +1,7 @@
 {
   "name": "socialcrawl-apify",
-  "version": "1.1.0",
-  "description": "Apify Actor for SocialCrawl — one API key for 42 social, commerce, app-store, review, places & travel, and web-research platforms across 323 endpoints, plus universal cross-platform social search and Prism composites, all behind one unified response envelope.",
+  "version": "1.2.0",
+  "description": "Apify Actor for SocialCrawl — one API key for 48 social, commerce, app-store, review, places & travel, and web-research platforms across 381 endpoints, plus universal cross-platform search, Prism composites, scheduled monitors, full per-endpoint credit pricing, and free self-documenting quickstart / endpoint-guide / agent-context actions, all behind one unified response envelope.",
   "type": "module",
   "engines": {
     "node": ">=18.0.0"

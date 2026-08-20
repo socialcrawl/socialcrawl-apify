@@ -17,6 +17,13 @@ export interface ApiCallOptions {
    * keys are then removed from the query string / JSON body).
    */
   resource: string;
+  /**
+   * Full public path template, overriding `/v1/{platform}/{resource}`. Used by
+   * the non-registry stateful families whose route does not follow that shape —
+   * `monitors/pause` is `PATCH /v1/monitors/{monitor_id}`, not
+   * `/v1/monitors/pause`. `{token}` placeholders are substituted the same way.
+   */
+  path?: string;
   /** HTTP method. Defaults to GET. The stateful web routes also use POST/PATCH/DELETE. */
   method?: HttpMethod;
   /**
@@ -60,7 +67,12 @@ export async function callApi(
   options: ApiCallOptions,
 ): Promise<ApiCallResult> {
   const method: HttpMethod = options.method ?? "GET";
-  const { path, consumed } = resolvePath(options.platform, options.resource, options.params);
+  const { path, consumed } = resolvePath(
+    options.platform,
+    options.resource,
+    options.params,
+    options.path,
+  );
   const rest = omit(options.params ?? {}, consumed);
 
   const useBody = BODY_METHODS.has(method);
@@ -156,23 +168,31 @@ export function resolvePath(
   platform: string,
   resource: string,
   params?: Record<string, unknown>,
+  pathTemplate?: string,
 ): { path: string; consumed: string[] } {
   const consumed: string[] = [];
-  const resolvedResource = resource.replace(/\{([^}]+)\}/g, (_match, name: string) => {
+  const template =
+    pathTemplate ??
+    (platform === "meta" ? `/v1/${resource}` : `/v1/${platform}/${resource}`);
+  // Each `{token}` is a required param of the endpoint, so a missing value is
+  // already a validation failure by the time we get here. encodeURIComponent is
+  // what keeps a hostile id from steering the request at another /v1 route.
+  const path = template.replace(/\{([^}]+)\}/g, (_match, name: string) => {
     consumed.push(name);
     const value = params?.[name];
     return encodeURIComponent(value == null ? "" : String(value));
   });
-  const path =
-    platform === "meta"
-      ? `/v1/${resolvedResource}`
-      : `/v1/${platform}/${resolvedResource}`;
   return { path, consumed };
 }
 
 /** Full URL for a GET/DELETE call (query-string transport). Kept for tests. */
 export function buildUrl(baseUrl: string, options: ApiCallOptions): string {
-  const { path, consumed } = resolvePath(options.platform, options.resource, options.params);
+  const { path, consumed } = resolvePath(
+    options.platform,
+    options.resource,
+    options.params,
+    options.path,
+  );
   const rest = omit(options.params ?? {}, consumed);
   const query = toQueryString(rest);
   return query ? `${baseUrl}${path}?${query}` : `${baseUrl}${path}`;

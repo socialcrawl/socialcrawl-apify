@@ -1,6 +1,6 @@
 {
   "title": "SocialCrawl — Unified Social Media Data API",
-  "description": "Call any of 357 SocialCrawl endpoints across 44 platforms, run a universal cross-platform social search, trigger a Prism composite, or drive the web-scraping suite — all with your own SocialCrawl API key. Pick a platform and resource, add parameters, and run.",
+  "description": "Call any of 381 SocialCrawl endpoints across 48 platforms, run a universal cross-platform social search, trigger a Prism composite, drive the web-scraping suite, or manage scheduled monitors — all with your own SocialCrawl API key. Pick a platform and resource, add parameters, and run. The 'List'/'Search' actions need no key.",
   "type": "object",
   "schemaVersion": 1,
   "properties": {
@@ -14,52 +14,128 @@
     "action": {
       "title": "Action",
       "type": "string",
-      "description": "What the Actor should do. 'Run API request' is the default. The two 'List…' actions work without an API key and help you discover what's available.",
+      "description": "What the Actor should do. 'Run API request' is the default. Everything below it is free: the four 'Learn the API' actions cost 0 credits (they read the API's own live docs surface, so they need a key but never charge), and the four 'Browse' actions answer from the Actor's bundled catalog and need no key at all. New to SocialCrawl? Start with 'Quickstart'.",
       "editor": "select",
       "default": "request",
-      "enum": ["request", "listPlatforms", "listEndpoints", "listPricing", "checkBalance"],
+      "enum": [
+        "request",
+        "quickstart",
+        "endpointGuide",
+        "agentContext",
+        "checkForUpdates",
+        "listPlatforms",
+        "listEndpoints",
+        "searchEndpoints",
+        "listPricing",
+        "checkBalance"
+      ],
       "enumTitles": [
         "Run API request",
-        "List platforms (no key needed)",
-        "List endpoints for a platform (no key needed)",
-        "List pricing for endpoints (no key needed)",
+        "Learn: Quickstart — how to configure and call the API (free)",
+        "Learn: Endpoint guide — full instructions for one endpoint (free)",
+        "Learn: Agent context — the llms.txt corpus for your AI agent (free)",
+        "Learn: Check for updates — is this Actor's catalog still current? (free)",
+        "Browse: List platforms (no key needed)",
+        "Browse: List endpoints for a platform (no key needed)",
+        "Browse: Search all endpoints by keyword (no key needed)",
+        "Browse: List pricing for endpoints (no key needed)",
         "Check credit balance"
       ]
     },
     "platform": {
       "title": "Platform",
       "type": "string",
-      "description": "The platform to query. Choose 'Universal Search' to fan out across many social platforms in one call.",
+      "description": "The platform to query. Choose 'Universal Search' to fan out across many social platforms in one call, 'Prism' for cross-platform composites, or 'Monitors' to schedule any endpoint to re-run on a cadence. For 'Quickstart' and 'Agent context' this scopes the answer to one platform — tick `allPlatforms` for the whole API.",
       "editor": "select",
       "default": "tiktok",
       "enum": [
-        "tiktok", "instagram", "youtube", "twitter", "linkedin", "facebook",
+        "web", "tiktok", "instagram", "youtube", "twitter", "linkedin", "facebook",
         "reddit", "threads", "pinterest", "twitch", "snapchat", "truthsocial",
         "kick", "kwai", "tiktokshop", "perplexity", "google", "amazon",
         "google_shopping", "google_news", "google_finance", "google_trends",
-        "trustpilot", "google_play", "app_store", "tripadvisor", "utility",
-        "linktree", "linkbio", "linkme", "komi", "pillar", "polymarket",
-        "hackernews", "github", "tavily", "naver", "rumble", "bluesky",
-        "spotify", "web", "search", "prism", "content_analysis"
+        "trustpilot", "google_play", "app_store", "tripadvisor", "walmart",
+        "target", "home_depot", "ebay", "utility", "linktree", "linkbio", "linkme",
+        "komi", "pillar", "polymarket", "hackernews", "github", "tavily", "naver",
+        "rumble", "bluesky", "spotify", "search", "prism", "content_analysis",
+        "monitors"
       ],
       "enumTitles": [
-        "TikTok", "Instagram", "YouTube", "Twitter/X", "LinkedIn", "Facebook",
-        "Reddit", "Threads", "Pinterest", "Twitch", "Snapchat", "Truth Social",
-        "Kick", "Kwai", "TikTok Shop", "Perplexity", "Google", "Amazon",
-        "Google Shopping", "Google News", "Google Finance", "Google Trends",
-        "Trustpilot", "Google Play", "Apple App Store", "Tripadvisor", "Utility",
+        "Web Scraping", "TikTok", "Instagram", "YouTube", "Twitter/X", "LinkedIn",
+        "Facebook", "Reddit", "Threads", "Pinterest", "Twitch", "Snapchat",
+        "Truth Social", "Kick", "Kwai", "TikTok Shop", "Perplexity", "Google",
+        "Amazon", "Google Shopping", "Google News", "Google Finance",
+        "Google Trends", "Trustpilot", "Google Play", "Apple App Store",
+        "Tripadvisor", "Walmart", "Target", "Home Depot", "eBay", "Utility",
         "Linktree", "LinkBio", "LinkMe", "Komi", "Pillar", "Polymarket",
-        "Hacker News", "GitHub", "Tavily", "Naver", "Rumble", "Bluesky",
-        "Spotify", "Web Scraping", "Universal Search", "Prism", "Content Analysis"
+        "Hacker News", "GitHub", "Tavily", "Naver", "Rumble", "Bluesky", "Spotify",
+        "Universal Search", "Prism", "Content Analysis", "Monitors"
       ]
     },
     "resource": {
       "title": "Resource (endpoint)",
       "type": "string",
-      "description": "The endpoint to call on the chosen platform, e.g. `profile`, `profile/videos`, `video/comments`. For Universal Search use `everywhere`. Not sure? Run with action 'List endpoints' first.",
+      "description": "The endpoint to call on the chosen platform, e.g. `profile`, `profile/videos`, `video/comments`. For Universal Search use `everywhere`. For Monitors use `create`, `list`, `get`, `runs`, `timeseries`, `pause`, `resume`, or `delete`. Also names the endpoint for action 'Endpoint guide'. Not sure? Run action 'Search endpoints' first, or 'Endpoint guide' for exact instructions.",
       "editor": "textfield",
       "default": "profile",
       "prefill": "profile"
+    },
+    "params": {
+      "title": "Parameters",
+      "type": "object",
+      "description": "Parameters as key–value pairs, e.g. {\"handle\": \"charlidamelio\"} for a TikTok profile, {\"url\": \"https://...\"} for comments, or {\"query\": \"electric cars\"} for Universal Search. Run 'List endpoints' to see every parameter with its type, allowed values, bounds and an example.",
+      "editor": "json",
+      "prefill": { "handle": "charlidamelio" }
+    },
+    "allPlatforms": {
+      "title": "Cover every platform",
+      "type": "boolean",
+      "description": "The Platform dropdown can never be empty, so tick this to ignore it. 'List endpoints' / 'List pricing' then cover the WHOLE catalog; 'Quickstart' / 'Agent context' return the whole-API answer instead of a platform-tailored one.",
+      "editor": "checkbox",
+      "default": false
+    },
+    "query": {
+      "title": "Search query (for 'Search endpoints')",
+      "type": "string",
+      "description": "Keyword(s) to search the whole endpoint catalog with — e.g. `comments`, `product reviews`, `transcript`, `ad library`. Only used by action 'Search endpoints'.",
+      "editor": "textfield",
+      "prefill": "comments"
+    },
+    "format": {
+      "title": "Agent-context format",
+      "type": "string",
+      "description": "Only used by action 'Agent context'. `markdown` returns the llms.txt corpus (also saved to the key-value store as AGENT_CONTEXT.md, ready to paste into a system prompt or commit to a repo). `json` returns the same content as a structured object.",
+      "editor": "select",
+      "default": "markdown",
+      "enum": ["markdown", "json"],
+      "enumTitles": ["Markdown (llms.txt corpus)", "Structured JSON"]
+    },
+    "maxItems": {
+      "title": "Max items (auto-pagination)",
+      "type": "integer",
+      "description": "Leave at 0 for a single request. Set it higher and the Actor follows the API's `next_cursor` until it has this many items. ⚠️ EACH PAGE IS A SEPARATE BILLED CALL against your SocialCrawl credits. Only applies to endpoints where `paginatable` is true — run 'List endpoints' to check.",
+      "editor": "number",
+      "default": 0,
+      "minimum": 0,
+      "unit": "items",
+      "sectionCaption": "Pagination"
+    },
+    "maxPages": {
+      "title": "Max pages (safety cap)",
+      "type": "integer",
+      "description": "Hard ceiling on how many billed requests auto-pagination may make, whatever `maxItems` says. Capped at 500.",
+      "editor": "number",
+      "default": 20,
+      "minimum": 1,
+      "maximum": 500,
+      "unit": "pages"
+    },
+    "dryRun": {
+      "title": "Dry run (price it, don't call it)",
+      "type": "boolean",
+      "description": "Validate the request, resolve the exact endpoint and method, and report what it would cost — without calling the API or spending a single credit. Useful before a large auto-paginated run or a metered endpoint.",
+      "editor": "checkbox",
+      "default": false,
+      "sectionCaption": "Advanced"
     },
     "method": {
       "title": "HTTP method (optional)",
@@ -70,19 +146,11 @@
       "enum": ["", "GET", "POST", "PATCH", "DELETE"],
       "enumTitles": ["Auto (GET / resource default)", "GET", "POST", "PATCH", "DELETE"]
     },
-    "params": {
-      "title": "Parameters",
-      "type": "object",
-      "description": "Query parameters as key–value pairs, e.g. {\"handle\": \"charlidamelio\"} for a TikTok profile, {\"url\": \"https://...\"} for comments, or {\"query\": \"electric cars\"} for Universal Search. Values are sent verbatim.",
-      "editor": "json",
-      "prefill": { "handle": "charlidamelio" }
-    },
     "idempotencyKey": {
       "title": "Idempotency key (optional)",
       "type": "string",
-      "description": "Optional. An opaque, client-generated string (UUIDv4 recommended). Reusing it within 24h replays the original response and charges 0 new credits — safe for retries.",
-      "editor": "textfield",
-      "sectionCaption": "Advanced"
+      "description": "Optional. An opaque, client-generated string (UUIDv4 recommended). Reusing it within 24h replays the original response and charges 0 new credits — safe for retries. Applied to the first page only when auto-paginating.",
+      "editor": "textfield"
     },
     "baseUrl": {
       "title": "API base URL (optional)",

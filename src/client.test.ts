@@ -52,6 +52,37 @@ describe("resolvePath", () => {
   });
 });
 
+describe("resolvePath — explicit path templates (non-registry families)", () => {
+  it("uses the given path instead of /v1/{platform}/{resource}", () => {
+    // `monitors/pause` is a PATCH on the monitor itself; there is no /pause route.
+    const { path, consumed } = resolvePath(
+      "monitors",
+      "pause",
+      { monitor_id: "mon_1" },
+      "/v1/monitors/{monitor_id}",
+    );
+    expect(path).toBe("/v1/monitors/mon_1");
+    expect(consumed).toEqual(["monitor_id"]);
+  });
+
+  it("handles a collection route with no tokens", () => {
+    const { path, consumed } = resolvePath("monitors", "create", {}, "/v1/monitors");
+    expect(path).toBe("/v1/monitors");
+    expect(consumed).toEqual([]);
+  });
+
+  it("encodes a hostile id so it cannot steer the request at another route", () => {
+    const { path } = resolvePath(
+      "monitors",
+      "delete",
+      { monitor_id: "../credits/balance" },
+      "/v1/monitors/{monitor_id}",
+    );
+    expect(path).toBe("/v1/monitors/..%2Fcredits%2Fbalance");
+    expect(path).not.toContain("/credits/balance");
+  });
+});
+
 describe("formatHttpError", () => {
   const opts = { platform: "tiktok", resource: "profile" };
 
