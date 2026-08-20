@@ -1,0 +1,76 @@
+name: Publish actor to Apify
+
+# The Apify actor had no workflow at all: every release was `apify push` from a
+# laptop. That made it the most likely of the four distributions to fall behind
+# the registry, because nothing anywhere would notice if it did.
+#
+# The downstream sync (codebase/.github/workflows/sync-downstream.yml)
+# regenerates this repo's data and pushes a version bump when the endpoint
+# registry changes; this workflow turns that push into a new Apify build.
+#
+# Apify versioning note: `.actor/actor.json` carries a MAJOR.MINOR version
+# ("1.2") with `buildTag: latest`, which is deliberately coarser than
+# package.json's semver. A regenerated data set is a new BUILD under the same
+# actor version, so the patch bump in package.json needs no actor.json edit —
+# `apify push` republishes `latest` in place and existing users pick it up.
+#
+# Required secret: APIFY_TOKEN (Apify Console → Settings → Integrations → API
+# tokens). It needs write access to the actor.
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      # Everything baked into a build. Docs-only edits do not need a rebuild.
+      - "src/**"
+      - ".actor/**"
+      - "package.json"
+      - "package-lock.json"
+      - "Dockerfile"
+      - "registry-dump.json"
+  workflow_dispatch:
+
+concurrency:
+  group: publish-apify
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The same gate the other three distributions use: the drift-guard tests
+      # pin platform and endpoint totals, so a regeneration that lost a platform
+      # fails here rather than shipping to the Apify Store.
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Apify CLI
+        run: npm install -g apify-cli
+
+      - name: Push actor
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+        run: |
+          if [ -z "$APIFY_TOKEN" ]; then
+            echo "APIFY_TOKEN is not set — add it in repo Settings → Secrets." >&2
+            exit 1
+          fi
+          # `--no-prompt` keeps the CLI non-interactive; without it the build
+          # step blocks forever waiting on a confirmation nobody can give.
+          apify push --no-prompt
+
+      - name: Summary
+        run: |
+          echo "Pushed a new build of \`$(node -p "require('./.actor/actor.json').name")\` to Apify." >> "$GITHUB_STEP_SUMMARY"
