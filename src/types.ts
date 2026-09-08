@@ -9,7 +9,8 @@ export interface ParamDef {
  * `object` / `array` are never emitted by the registry generator (the backend
  * only declares the four scalar kinds). They exist for the hand-written
  * non-registry families whose JSON bodies carry structured values — the
- * monitors `params`, `alert_rules`, and `output_schema` fields.
+ * monitors `params`, `alert_rules` and `output_schema` fields, and the cohorts
+ * `platforms` subset.
  */
 export type OptionalParamType =
   | "string"
@@ -55,13 +56,13 @@ export interface Platform {
   social: boolean;
   category?: PlatformCategory;
   /**
-   * Stateful families that are NOT registry endpoints (today: `monitors`).
+   * Stateful families that are NOT registry endpoints (`monitors`, `cohorts`).
    * They are excluded from the headline platform/endpoint counts.
    */
   nonRegistry?: true;
 }
 
-export type HttpMethod = "GET" | "POST" | "PATCH" | "DELETE";
+export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export type CreditTier = "standard" | "advanced" | "premium";
 
@@ -87,6 +88,12 @@ export interface Pricing {
   maxCost?: number;
   /** Fixed page size when the meter bills per page. */
   pageSize?: number;
+  /**
+   * The upfront hold is computed per request from the inputs (today: a cohort
+   * query, whose ceiling is the sum over members of page-cap x per-page cost),
+   * so `maxCost` is the contractual ceiling, not the number actually held.
+   */
+  holdIsComputed?: true;
   /** Exact customer-facing wording for a dynamic price, authored in the registry. */
   description?: string;
 }
@@ -155,11 +162,17 @@ export interface Endpoint {
   contractDetails?: string[];
   /**
    * Explicit public path template, used by the non-registry stateful families
-   * whose path is not `/v1/{platform}/{resource}` (today: `monitors`).
+   * whose path is not `/v1/{platform}/{resource}` (`monitors`, `cohorts`).
    */
   path?: string;
   /** Params injected into every call (e.g. monitors `pause` sends `status=paused`). */
   fixedParams?: Record<string, unknown>;
+  /**
+   * The route requires an `Idempotency-Key` header (the cohort POST/PUT
+   * routes). The Actor generates one per run when the user supplies none, so a
+   * mutating call can never be rejected for a header the form does not have.
+   */
+  requiresIdempotencyKey?: true;
   /** True for a stateful family outside the registry — excluded from headline counts. */
   nonRegistry?: true;
 }
@@ -177,7 +190,12 @@ export interface SocialCrawlSuccessResponse {
   endpoint: string;
   data: unknown;
   credits_used: number;
-  credits_remaining: number;
+  /**
+   * `null` when the response did not establish a balance — a cache hit does no
+   * ledger read, so it reports `credits_used: 0` and `credits_remaining: null`
+   * rather than echoing a stale number.
+   */
+  credits_remaining: number | null;
   request_id: string;
   cached: boolean;
   pagination?: PaginationBlock;

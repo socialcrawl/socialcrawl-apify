@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Actor, log } from "apify";
 import {
   ALL_ENDPOINTS,
@@ -8,6 +9,7 @@ import {
 } from "./catalog.js";
 import { callApi, resolvePath, type ClientConfig } from "./client.js";
 import { DEFAULT_BASE_URL, SIGNUP_URL } from "./constants.js";
+import { prepareCohortBody } from "./data/cohorts.js";
 import { prepareMonitorBody } from "./data/monitors.js";
 import { REGISTRY_STATS } from "./data/stats.js";
 import { explainStop, runPaginated } from "./paginate.js";
@@ -40,7 +42,8 @@ type Action =
   | "listEndpoints"
   | "searchEndpoints"
   | "listPricing"
-  | "checkBalance";
+  | "checkBalance"
+  | "creditTransactions";
 
 /**
  * Actions served by the API's own `utility` platform rather than the bundled
@@ -104,7 +107,7 @@ try {
       platforms: rows,
     });
     await Actor.setStatusMessage(
-      `Listed ${rows.length} platforms (${REGISTRY_STATS.totalEndpoints} registry endpoints + the monitors family).`,
+      `Listed ${rows.length} platforms (${REGISTRY_STATS.totalEndpoints} registry endpoints + the stateful monitors and cohorts families).`,
     );
     await Actor.exit();
   }
@@ -233,6 +236,76 @@ try {
     await Actor.pushData({ action, balance: data });
     await Actor.setValue("OUTPUT", result.json);
     await Actor.setStatusMessage("Fetched credit balance.");
+    await Actor.exit();
+  }
+
+  // ── Credit ledger: the dispute-grade receipt for every charge ─────────
+  // Every deduction and refund, keyed by `request_id`, so a charge can be
+  // reconciled against the exact request that produced it. Free, keyset-
+  // paginated newest-first, and the only place `balance_after` is exposed.
+  if (action === "creditTransactions") {
+    const raw = cleanParams(input.params);
+    const ledgerParams: Record<string, unknown> = {};
+    const limit = Math.min(100, Math.max(1, Math.floor(Number(raw.limit ?? 50) || 50)));
+    ledgerParams.limit = limit;
+    if (typeof raw.request_id === "string" && raw.request_id.trim()) {
+      ledgerParams.request_id = raw.request_id.trim();
+    }
+
+    const wanted = Math.max(0, Math.floor(input.maxItems ?? 0));
+    const pageCap = Math.min(
+      HARD_PAGE_CAP,
+      Math.max(1, Math.floor(input.maxPages ?? HARD_PAGE_CAP)),
+    );
+
+    const rows: Record<string, unknown>[] = [];
+    let cursor: string | undefined =
+      typeof raw.cursor === "string" && raw.cursor ? raw.cursor : undefined;
+    let pages = 0;
+    let lastEnvelope: unknown = null;
+
+    for (;;) {
+      const result = await callApi(config, {
+        platform: "meta",
+        resource: "credits/transactions",
+        params: cursor ? { ...ledgerParams, cursor } : ledgerParams,
+      });
+      if (!result.ok) {
+        if (pages === 0) {
+          await failGracefully(result.errorMessage ?? "Failed to fetch the credit ledger.");
+        }
+        log.warning(`Stopped paging the ledger: ${result.errorMessage}`);
+        break;
+      }
+      pages += 1;
+      lastEnvelope = result.json;
+      const data = ((result.json as SocialCrawlSuccessResponse | null)?.data ??
+        {}) as Record<string, unknown>;
+      const items = Array.isArray(data.items) ? (data.items as Record<string, unknown>[]) : [];
+      for (const item of items) rows.push({ kind: "credit_transaction", ...item });
+
+      const next = typeof data.next_cursor === "string" ? data.next_cursor : null;
+      // These pages are free, so the only reason to stop is the user's own cap.
+      if (!next || items.length === 0 || wanted === 0) break;
+      if (rows.length >= wanted || pages >= pageCap) break;
+      cursor = next;
+    }
+
+    await Actor.pushData(rows);
+    const net = rows.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+    await Actor.setValue("OUTPUT", {
+      action,
+      pages,
+      count: rows.length,
+      // Deductions are negative and refunds positive, so this sum agrees with
+      // the balance delta across the rows fetched.
+      net_credit_change: net,
+      transactions: rows,
+      last_envelope: lastEnvelope,
+    });
+    await Actor.setStatusMessage(
+      `Fetched ${rows.length} credit-ledger row(s) across ${pages} page(s) — net ${net} credits. 0 credits charged.`,
+    );
     await Actor.exit();
   }
 
@@ -421,6 +494,7 @@ try {
 
   let params = cleanParams(input.params);
   if (platform === "monitors") params = prepareMonitorBody(params);
+  if (platform === "cohorts") params = prepareCohortBody(params);
 
   // Local validation — saves credits on obviously malformed calls, and resolves
   // the exact endpoint (method, pricing band, pagination) from the bundled
@@ -456,6 +530,20 @@ try {
 
   const plannedPages = maxItems > 0 ? maxPages : 1;
   const estimate = estimateRunCost(endpoint, plannedPages);
+
+  // The cohort POST/PUT routes REJECT a call with no `Idempotency-Key`, and the
+  // Apify form has no natural place to make a user invent a UUID. Generating
+  // one per run keeps the route callable; supplying `idempotencyKey` yourself
+  // is what makes a re-run replay the first result instead of creating a second
+  // cohort or reserving a second query.
+  const suppliedKey = input.idempotencyKey?.trim() || undefined;
+  const idempotencyKey =
+    suppliedKey ?? (endpoint.requiresIdempotencyKey ? randomUUID() : undefined);
+  if (!suppliedKey && idempotencyKey) {
+    log.info(
+      `${publicPath(endpoint)} requires an Idempotency-Key; generated ${idempotencyKey} for this run. Pass it back as the \`idempotencyKey\` input to replay this exact call instead of creating another resource.`,
+    );
+  }
 
   // ── Dry run: report the resolved call and its price, spend nothing ────
   if (input.dryRun) {
@@ -497,6 +585,18 @@ try {
         max_credits: estimate.max,
         explanation: estimate.text,
       },
+      ...(endpoint.requiresIdempotencyKey
+        ? {
+            idempotency: {
+              required: true,
+              key: idempotencyKey,
+              supplied_by_user: Boolean(suppliedKey),
+              note: suppliedKey
+                ? "Your key. Replaying it with the same body returns the original resource."
+                : "Generated for this run because the route requires the header. Set the `idempotencyKey` input to a fixed UUID to make re-runs replay instead of creating a second resource.",
+            },
+          }
+        : {}),
       warnings: validation.warnings,
       note: "Dry run — nothing was called and no credits were spent. Clear the `dryRun` input to execute.",
     };
@@ -518,7 +618,7 @@ try {
   const summary = await runPaginated(config, endpoint, params, {
     maxItems,
     maxPages,
-    idempotencyKey: input.idempotencyKey?.trim() || undefined,
+    idempotencyKey,
     onPage: async (page) => {
       const rows = rowsFromEnvelope(
         endpoint.platform,
@@ -639,6 +739,7 @@ function describeEndpoint(e: Endpoint): Record<string, unknown> {
     ...(e.singlePage ? { single_page_reason: e.singlePage } : {}),
     ...(e.collectUntilN ? { server_side_collection: e.collectUntilN } : {}),
     ...(e.execution ? { execution: e.execution } : {}),
+    ...(e.requiresIdempotencyKey ? { requires_idempotency_key: true } : {}),
     ...(e.emptyOn404 ? { empty_result_is_not_an_error: true } : {}),
     ...(e.contractDetails?.length ? { contract_details: e.contractDetails } : {}),
   };

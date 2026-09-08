@@ -21,65 +21,65 @@ export const PLATFORMS: Platform[] = [
   {
     slug: "tiktok",
     name: "TikTok",
-    endpointCount: 21,
-    social: true,
-    category: "major",
-    description:
-      "Profiles, videos, comments and replies, keyword/hashtag/top/user search, trending feed, audience demographics, followers, following, live streams, songs, video transcripts, on-screen text extraction, profile region lookup, and a one-call full profile dossier (profile + recent posts + computed analytics).",
-  },
-  {
-    slug: "instagram",
-    name: "Instagram",
     endpointCount: 33,
     social: true,
     category: "major",
     description:
-      "Profiles, posts, reels, comments, story highlights, stories, tagged posts, location feeds, followers, following, similar accounts, post likers, post-reshare stats, one-call reels/posts lists with per-item share counts, account engagement analytics, reels/hashtag/profile/location/music search, username suggestions, trending reels and music, audio reels, embed HTML, and AI-powered media transcripts.",
+      "Profiles, videos, comments and replies, keyword/hashtag/top/user/sound search and autocomplete suggestions, trending feed, hashtag details, audience demographics, followers, following, liked videos, live streams, songs and song feeds, playlists, collections, effects and effect feeds, place-tagged videos, the TikTok Ad Library (ad search + ad details), video transcripts, on-screen text extraction, profile region lookup, and a one-call full profile dossier (profile + recent posts + computed analytics).",
+  },
+  {
+    slug: "instagram",
+    name: "Instagram",
+    endpointCount: 37,
+    social: true,
+    category: "major",
+    description:
+      "Profiles, account transparency details, posts, reels, comments and comment replies, story highlights, stories and single-story download, tagged posts, location feeds, followers, following, similar accounts, post likers, post-reshare stats, one-call reels/posts lists with per-item share counts, account engagement analytics, unified/popular/reels/hashtag/profile/location/music search, username suggestions, trending reels and music, audio reels, embed HTML, and AI-powered media transcripts.",
   },
   {
     slug: "youtube",
     name: "YouTube",
-    endpointCount: 28,
+    endpointCount: 29,
     social: true,
     category: "major",
     description:
-      "Channels, videos, shorts, comments and replies, video sponsors, playlists and playlist items, community posts, keyword/hashtag/advanced search and autocomplete suggestions, trending videos and shorts, channel live streams, downloadable media files (audio, video, subtitles, thumbnails), batch video/channel/transcript lookups, and video transcripts.",
+      "Channels, channel contact email and country, videos, shorts, comments and replies, video sponsors, playlists and playlist items, community posts, keyword/hashtag/advanced search and autocomplete suggestions, trending videos and shorts, channel live streams, downloadable media files (audio, video, subtitles, thumbnails), batch video/channel/transcript lookups, and video transcripts.",
   },
   {
     slug: "twitter",
     name: "Twitter/X",
-    endpointCount: 8,
+    endpointCount: 15,
     social: true,
     category: "major",
     description:
-      "Profiles, tweets, communities, community tweets, video transcripts, AI-powered natural-language X search via Grok with citations, and a one-call full profile dossier.",
+      "Profiles, tweets, tweet replies and retweeters, user media, followers, following, tweet and user search, communities, community tweets, video transcripts, AI-powered natural-language X search via Grok with citations, and a one-call full profile dossier.",
   },
   {
     slug: "linkedin",
     name: "LinkedIn",
-    endpointCount: 44,
+    endpointCount: 45,
     social: true,
     category: "major",
     description:
-      "Personal profiles and company pages, posts, reposts, reactions, group and company posts, post comments and replies, people and company-people search, structured profile sub-resources (experiences, educations, skills, honors, certifications, publications, volunteers, recommendations, interests, images, videos), jobs (job search, company jobs, job details), company insights and job counts, groups, location/school/industry search, post transcripts, and the LinkedIn Ad Library (ad details, ad search).",
+      "Personal profiles and company pages, posts, a metered complete post-history archive, reposts, reactions, group and company posts, post comments and replies, people and company-people search, structured profile sub-resources (experiences, educations, skills, honors, certifications, publications, volunteers, recommendations, interests, images, videos, comments), jobs (job search, company jobs, job details), company insights and job counts, groups, location/school/industry search, public post search, post transcripts, and the LinkedIn Ad Library (ad details, ad search).",
   },
   {
     slug: "facebook",
     name: "Facebook",
-    endpointCount: 23,
+    endpointCount: 24,
     social: true,
     category: "major",
     description:
-      "Pages, posts, comments and replies, group posts, photos, reels, one-call reels lists with exact views/likes/comments/shares merged in, events with event details and event search, Marketplace (keyword search, location search, item details), video and ad transcripts, the full Facebook Ad Library (ads, company ads, ad search, company search), and a one-call full profile dossier.",
+      "Pages, groups and group posts, posts, comments and replies, photos, reels, one-call reels lists with exact views/likes/comments/shares merged in, events with event details and event search, Marketplace (keyword search, location search, item details), video and ad transcripts, the full Facebook Ad Library (ads, company ads, ad search, company search), and a one-call full profile dossier.",
   },
   {
     slug: "reddit",
     name: "Reddit",
-    endpointCount: 8,
+    endpointCount: 14,
     social: true,
     category: "major",
     description:
-      "Subreddit posts and details, single post lookup, post comments, keyword search, subreddit search, post video transcripts, and a one-keyword omni-search across all of Reddit with subreddit attribution and top comments inline.",
+      "Subreddit posts and details, user profiles with their post and comment history, single post lookup, post comments, post/comment/media keyword search, in-subreddit search, subreddit discovery by topic, post video transcripts, and a one-keyword omni-search across all of Reddit with subreddit attribution and top comments inline.",
   },
   {
     slug: "threads",
@@ -111,11 +111,11 @@ export const PLATFORMS: Platform[] = [
   {
     slug: "snapchat",
     name: "Snapchat",
-    endpointCount: 1,
+    endpointCount: 2,
     social: true,
     category: "additional",
     description:
-      "Public user profiles including subscriber count and bio.",
+      "Public user profiles including subscriber count and bio, plus comments on a Spotlight clip.",
   },
   {
     slug: "truthsocial",
@@ -125,6 +125,15 @@ export const PLATFORMS: Platform[] = [
     category: "additional",
     description:
       "Profiles, user posts, and post details.",
+  },
+  {
+    slug: "telegram",
+    name: "Telegram",
+    endpointCount: 3,
+    social: true,
+    category: "additional",
+    description:
+      "Public Telegram channels and groups — channel profiles with exact subscriber counts, paginated channel post feeds, and single posts by t.me URL, each with text, publish time, view count, the per-emoji reaction breakdown, and direct media URLs.",
   },
   {
     slug: "kick",
@@ -174,19 +183,19 @@ export const PLATFORMS: Platform[] = [
   {
     slug: "amazon",
     name: "Amazon",
-    endpointCount: 5,
+    endpointCount: 8,
     social: true,
     description:
-      "Product search, full ASIN product details, on-page reviews, buy-box sellers and offers, and Amazon shop/storefront pages — across ~13 Amazon marketplaces via the country parameter.",
+      "Product search, full ASIN product details, on-page reviews, buy-box sellers and offers, seller profiles, Best Sellers by category, current deals, and Amazon shop/storefront pages — across ~13 Amazon marketplaces via the country parameter.",
   },
   {
     slug: "google_shopping",
     name: "Google Shopping",
-    endpointCount: 4,
+    endpointCount: 5,
     social: false,
     category: "commerce",
     description:
-      "Google Shopping product search, full product details, reviews aggregated across retailers, and per-seller offers with itemised pricing.",
+      "Google Shopping product search, full product details, reviews aggregated across retailers, per-seller offers with itemised pricing, and product price history.",
   },
   {
     slug: "google_news",
@@ -198,13 +207,13 @@ export const PLATFORMS: Platform[] = [
       "Real-time Google News SERP search — ranked headlines with source, snippet, and timestamp for any query.",
   },
   {
-    slug: "google_finance",
-    name: "Google Finance",
-    endpointCount: 3,
+    slug: "finance",
+    name: "Finance",
+    endpointCount: 7,
     social: false,
     category: "utility",
     description:
-      "Financial-instrument data — full quotes, a markets overview (indices + top movers), and ticker search by name.",
+      "Financial-instrument data — full quotes for stocks, ETFs, indices, forex and crypto, ticker search by name, a markets overview (regional indices plus the day's movers), instrument news, daily price history, company financial statements (income, balance sheet, cash flow), and options chains.",
   },
   {
     slug: "google_trends",
@@ -222,6 +231,15 @@ export const PLATFORMS: Platform[] = [
     category: "commerce",
     description:
       "Trustpilot business search and company reviews — brand-reputation data keyed by company domain (shipping, refunds, support sentiment). For product reviews use amazon/reviews or google_shopping/reviews.",
+  },
+  {
+    slug: "g2",
+    name: "G2",
+    endpointCount: 7,
+    social: false,
+    category: "commerce",
+    description:
+      "G2 software reviews — product pages by slug or URL, product reviews, category product listings and the full category index, vendor (seller) profiles and their product catalogues, and a product-URL index for bulk discovery.",
   },
   {
     slug: "google_play",
@@ -242,11 +260,11 @@ export const PLATFORMS: Platform[] = [
   {
     slug: "tripadvisor",
     name: "Tripadvisor",
-    endpointCount: 2,
+    endpointCount: 16,
     social: false,
     category: "commerce",
     description:
-      "Place and business search (restaurants, hotels, attractions) and traveler reviews with owner replies, review images, and cross-language auto-translation metadata.",
+      "The full Tripadvisor travel surface — cross-type place and business search with autocomplete, single places by URL, and dedicated hotel, restaurant, attraction and cruise search plus per-entity detail pages and their traveler reviews (with owner replies, review images, and cross-language auto-translation metadata), plus the experience types available in a destination.",
   },
   {
     slug: "walmart",
@@ -267,13 +285,22 @@ export const PLATFORMS: Platform[] = [
       "Target product details by TCIN, product reviews, category browse, the full category taxonomy, and store lookup near a location.",
   },
   {
-    slug: "home_depot",
-    name: "Home Depot",
-    endpointCount: 2,
+    slug: "wayfair",
+    name: "Wayfair",
+    endpointCount: 3,
     social: false,
     category: "commerce",
     description:
-      "Home Depot product details by item id or URL, plus product reviews.",
+      "Wayfair keyword product search, product details by SKU, and product reviews.",
+  },
+  {
+    slug: "home_depot",
+    name: "Home Depot",
+    endpointCount: 4,
+    social: false,
+    category: "commerce",
+    description:
+      "Home Depot keyword product search, product details by item id or URL, product reviews, and store lookup near a ZIP code.",
   },
   {
     slug: "ebay",
@@ -283,6 +310,78 @@ export const PLATFORMS: Platform[] = [
     category: "commerce",
     description:
       "eBay listing search and full listing details by item id.",
+  },
+  {
+    slug: "etsy",
+    name: "Etsy",
+    endpointCount: 4,
+    social: false,
+    category: "commerce",
+    description:
+      "Etsy listings by id or URL, shop product listings, similar-listing recommendations, and search suggestions.",
+  },
+  {
+    slug: "sephora",
+    name: "Sephora",
+    endpointCount: 11,
+    social: false,
+    category: "commerce",
+    description:
+      "Sephora product details, reviews, keyword search and search suggestions, category browse with the category tree, brand listings and per-brand products, store lookup near a coordinate, and in-store SKU availability.",
+  },
+  {
+    slug: "aliexpress",
+    name: "AliExpress",
+    endpointCount: 9,
+    social: false,
+    category: "commerce",
+    description:
+      "AliExpress product details, keyword search, similar products, reviews, per-SKU shipping options and costs, hot-product and promotion feeds, the category tree, and the list of featured promotions.",
+  },
+  {
+    slug: "hm",
+    name: "H&M",
+    endpointCount: 6,
+    social: false,
+    category: "commerce",
+    description:
+      "H&M keyword product search and search suggestions, the category tree, per-country store lists, the countries/languages reference, and the supplier-and-factory disclosure behind a product.",
+  },
+  {
+    slug: "kohls",
+    name: "Kohl's",
+    endpointCount: 5,
+    social: false,
+    category: "commerce",
+    description:
+      "Kohl's keyword product search, product reviews, customer questions and answers, store lookup near a coordinate, and the category tree.",
+  },
+  {
+    slug: "klarna",
+    name: "Klarna",
+    endpointCount: 18,
+    social: false,
+    category: "commerce",
+    description:
+      "Klarna's shopping comparison surface — product details, merchant offers for a product, keyword search and suggestions, user and professional reviews plus review-score overviews, price history, side-by-side product comparison, category browse with the full category tree, per-category filters, popular keywords and buying guides, and store listings with their products and filters.",
+  },
+  {
+    slug: "gumtree",
+    name: "Gumtree",
+    endpointCount: 11,
+    social: false,
+    category: "commerce",
+    description:
+      "Gumtree UK classifieds — keyword listing search, single ads by id or URL, similar listings, seller profiles and their active ads, search suggestions, trending searches, the category tree, per-category filters, and location autocomplete and nearest-location lookup.",
+  },
+  {
+    slug: "yelp",
+    name: "Yelp",
+    endpointCount: 5,
+    social: false,
+    category: "commerce",
+    description:
+      "Yelp business lookup by encid, business reviews, business search in both compact and full-card form, and search suggestions.",
   },
   {
     slug: "utility",
@@ -356,6 +455,24 @@ export const PLATFORMS: Platform[] = [
       "Story search, story details, story comment trees, and user profiles.",
   },
   {
+    slug: "quora",
+    name: "Quora",
+    endpointCount: 7,
+    social: true,
+    category: "additional",
+    description:
+      "Question search, single questions with their answers, answer search, Space post search, profile search, Space search, and topic search across Quora.",
+  },
+  {
+    slug: "douyin",
+    name: "Douyin",
+    endpointCount: 8,
+    social: true,
+    category: "additional",
+    description:
+      "China's Douyin (抖音) — creator profiles, their video feeds, single videos, video comments and comment replies, keyword video search, creator search, and the hot-search trending board. Most of the surface is metered per row returned, so quote the band from action \"List pricing\" before sizing a crawl.",
+  },
+  {
     slug: "github",
     name: "GitHub",
     endpointCount: 12,
@@ -410,13 +527,22 @@ export const PLATFORMS: Platform[] = [
       "Artists, tracks, albums, podcasts, podcast episodes, and search across the Spotify catalog.",
   },
   {
+    slug: "apple_music",
+    name: "Apple Music",
+    endpointCount: 4,
+    social: true,
+    category: "additional",
+    description:
+      "Catalog search plus artists, albums, and tracks from Apple Music.",
+  },
+  {
     slug: "search",
     name: "Universal Search",
-    endpointCount: 3,
+    endpointCount: 4,
     social: false,
     category: "utility",
     description:
-      "Meta-search across 14 platforms in a single call (up to 17 sources in hashtag mode) — LLM-planned, RRF-fused, LLM-reranked and clustered — plus a fused forum search across Reddit, Hacker News and Korean forums with top comments inline, and a planned multi-country news search that localizes one query across Google News editions.",
+      "Meta-search across 14 platforms in a single call (up to 17 sources in hashtag mode) — LLM-planned, RRF-fused, LLM-reranked and clustered — plus a fused forum search across Reddit, Hacker News and Korean forums with top comments inline, creator discovery fused across TikTok, Threads and Instagram, and a multi-country news search that localizes one query across two independent news indexes.",
   },
   {
     slug: "prism",
@@ -433,5 +559,32 @@ export const PLATFORMS: Platform[] = [
     social: false,
     description:
       "Cross-web brand-mention search and 6-axis sentiment intelligence over news, blogs, ecommerce, and message boards — paginated mention feeds, sentiment/summary aggregates, rating distributions, phrase and category trends, plus languages/locations/categories/filters reference data.",
+  },
+  {
+    slug: "on_page",
+    name: "On-Page",
+    endpointCount: 1,
+    social: false,
+    category: "utility",
+    description:
+      "On-page SEO audit for a single URL — the technical, content and metadata checks a crawler would run, in one call.",
+  },
+  {
+    slug: "jobs",
+    name: "Jobs",
+    endpointCount: 11,
+    social: false,
+    category: "utility",
+    description:
+      "Cross-board job data — job search and single-listing lookups on LinkedIn, Indeed, Bing and Xing, LinkedIn organization-id resolution, job-title suggestions, and salary ranges by title and country.",
+  },
+  {
+    slug: "us_congress_trades",
+    name: "US Congress Trades",
+    endpointCount: 19,
+    social: false,
+    category: "utility",
+    description:
+      "US Congress stock-trade disclosures (STOCK Act filings) — searchable trades, 48-hour and 7-day recency feeds, the roster of disclosing members, per-politician and per-ticker trading summaries and trade lists, state-delegation trades, and a full stats suite: party comparison, sector and issuer breakdowns, most-active traders and tickers, volume over time, unusual activity, buy/sell ratio, and a late-filing (reporting-gap) ranking.",
   },
 ];

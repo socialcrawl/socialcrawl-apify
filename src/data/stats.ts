@@ -9,21 +9,21 @@
  * fails when the generated data files drift from them.
  */
 export const REGISTRY_STATS = {
-  totalPlatforms: 48,
-  totalEndpoints: 381,
-  socialPlatforms: 27,
+  totalPlatforms: 65,
+  totalEndpoints: 571,
+  socialPlatforms: 31,
   universalSearchPlatforms: 14,
   universalSearchSources: 17,
   /** Endpoints charging the plain 1/5/10 tier rate. */
-  ladderPriced: 294,
+  ladderPriced: 470,
   /** Endpoints with a flat per-endpoint override off the ladder. */
-  flatPriced: 61,
+  flatPriced: 64,
   /** Endpoints whose charge is computed per request from the params sent. */
-  meteredPriced: 26,
+  meteredPriced: 37,
   /** Endpoints that never charge a credit. */
   freeEndpoints: 18,
   /** Endpoints that accept the universal `cursor` and can be auto-paginated. */
-  paginatableEndpoints: 127,
+  paginatableEndpoints: 195,
 } as const;
 
 /** The 1/5/10 credit ladder, straight from the backend constants. */

@@ -152,8 +152,8 @@ function sortedSet(names: readonly string[]): string {
  * 404s over the wire. This is the only check that catches either.
  *
  * Scope note: the comparison covers REGISTRY endpoints only. The non-registry
- * `monitors` family is absent from `utility/endpoints` by design, so counting
- * it would report permanent phantom drift.
+ * `monitors` and `cohorts` families are absent from `utility/endpoints` by
+ * design, so counting them would report permanent phantom drift.
  */
 export function compareCatalog(
   live: CatalogRow[],

@@ -45,9 +45,11 @@ export function costRange(e: Endpoint): { min: number; max: number } {
 /**
  * Credits deducted the moment the request is accepted. Fixed-price endpoints
  * charge their cost; metered endpoints hold the ceiling and refund the
- * difference once the work settles.
+ * difference once the work settles. `null` where the hold is computed per
+ * request from the inputs — a single number would be a fiction there.
  */
-export function creditsHeldUpfront(e: Endpoint): number {
+export function creditsHeldUpfront(e: Endpoint): number | null {
+  if (e.pricing.holdIsComputed) return null;
   return costRange(e).max;
 }
 
@@ -83,7 +85,12 @@ export function pricingNote(e: Endpoint): string {
   if (model === "metered") {
     const { min, max } = costRange(e);
     const band = min === max ? `${min} ${plural(min)}` : `${min}-${max} credits`;
-    const headline = `Metered — ${band} per call, ${max} held up front and refunded down to the work actually done`;
+    // Most meters hold the flat ceiling. A few compute the hold from the inputs
+    // (a cohort query's ceiling is the panel size × the page cap), so quoting
+    // `max` as "the amount held" would be wrong by orders of magnitude.
+    const headline = e.pricing.holdIsComputed
+      ? `Metered — ${band} per call; the exact ceiling is computed from the request, held up front, and refunded down to the work actually done`
+      : `Metered — ${band} per call, ${max} held up front and refunded down to the work actually done`;
     return authored ? `${headline}. ${authored}` : `${headline}.`;
   }
 
@@ -125,7 +132,9 @@ export interface EndpointPricing {
   min_credits: number;
   max_credits: number;
   /** Deducted when the request is accepted; the unused part is refunded. */
-  credits_held_upfront: number;
+  credits_held_upfront: number | null;
+  /** True when the upfront hold is computed per request, so no fixed number applies. */
+  hold_is_computed: boolean;
   is_free: boolean;
   is_metered: boolean;
   is_flat_override: boolean;
@@ -157,6 +166,7 @@ export function pricingFor(e: Endpoint): EndpointPricing {
     min_credits: min,
     max_credits: max,
     credits_held_upfront: creditsHeldUpfront(e),
+    hold_is_computed: e.pricing.holdIsComputed === true,
     is_free: model === "free",
     is_metered: model === "metered",
     is_flat_override: model === "flat",
@@ -186,7 +196,9 @@ export function estimateRunCost(
   const perCall =
     min === max
       ? `${min} ${plural(min)}`
-      : `${min}-${max} credits (metered — ${max} held, refunded down to actual)`;
+      : e.pricing.holdIsComputed
+        ? `${min}-${max} credits (metered — the ceiling is computed from your request, held, then refunded down to actual)`
+        : `${min}-${max} credits (metered — ${max} held, refunded down to actual)`;
 
   if (pages === 1) return { min: totalMin, max: totalMax, text: perCall };
 
@@ -209,30 +221,30 @@ export function estimateRunCost(
  */
 export const PRICING_SUMMARY = {
   model:
-    "Every data call is billed in credits against your own SocialCrawl API key. This Actor is free on Apify; you only pay Apify's standard compute. Each response echoes `credits_used` and `credits_remaining`.",
+    "Every data call is billed in credits against your own SocialCrawl API key. This Actor is free on Apify; you only pay Apify's standard compute. Each response echoes `credits_used` and `credits_remaining` (the latter is null on a cache hit, which does no ledger read).",
   ladder: {
     note: `The 1/5/10 tier ladder covers ${REGISTRY_STATS.ladderPriced} of ${REGISTRY_STATS.totalEndpoints} endpoints.`,
     tiers: [
       {
         tier: "standard",
         credits: CREDIT_LADDER.standard,
-        note: "Most profile/post/comment/search endpoints, plus web scrape/map/crawl/batch-scrape/parse.",
+        note: "Most profile/post/comment/search endpoints, the commerce reference data (category trees, filters, store locators), and web map/parse.",
       },
       {
         tier: "advanced",
         credits: CREDIT_LADDER.advanced,
-        note: "Analytics-heavy endpoints, ad libraries, commerce catalogues, structured web extraction, lighter composites.",
+        note: "Analytics-heavy endpoints, ad libraries, the commerce product/review catalogues (Klarna, AliExpress, Sephora, Gumtree, G2, Wayfair, Etsy, H&M, Kohl's), structured web extraction, lighter composites.",
       },
       {
         tier: "premium",
         credits: CREDIT_LADDER.premium,
-        note: "Video/audio transcripts (except YouTube) and the heaviest single-call endpoints.",
+        note: "Video/audio transcripts (except YouTube), job-board search, LinkedIn people/jobs search and reaction lists, app-listing databases, and the heaviest single-call endpoints.",
       },
     ],
   },
   flat_overrides: {
     count: REGISTRY_STATS.flatPriced,
-    note: `${REGISTRY_STATS.flatPriced} endpoints carry a per-endpoint price off the ladder — Universal Search, the Content Analysis analytics, the Prism composites, the web agent, and the free control routes. Run action "List pricing" for the exact number on each.`,
+    note: `${REGISTRY_STATS.flatPriced} endpoints carry a per-endpoint price off the ladder — Universal Search and its fused siblings, the Content Analysis analytics, the Prism composites (1–50), the one-call profile/full dossiers, the web agent, and the free control routes. Run action "List pricing" for the exact number on each.`,
   },
   metered: {
     count: REGISTRY_STATS.meteredPriced,
@@ -245,8 +257,10 @@ export const PRICING_SUMMARY = {
       "Cache hits cost 0 credits — see each endpoint's `cache_ttl_seconds`.",
       "Idempotent replays within 24h (the `idempotencyKey` input) cost 0 new credits.",
       "Credits are auto-refunded on upstream errors, empty results, request timeouts, and circuit-breaker trips.",
-      `${REGISTRY_STATS.freeEndpoints} endpoints never charge at all — the utility discovery routes and the stateful web job/monitor/session control routes.`,
+      `${REGISTRY_STATS.freeEndpoints} registry endpoints never charge at all — the four utility discovery routes, prism/lookup (which charges the resolved endpoint's own price, with no routing surcharge), and the stateful web job/monitor/session control routes.`,
       "Creating, listing, pausing and deleting monitors is free; each scheduled monitor RUN bills its recipe's cost plus 1 credit.",
+      "The whole cohort lifecycle is free — create, upload members, poll, cancel, delete, and read results. Only the query bills, per successful upstream page, and it refunds the unspent reservation exactly once.",
+      'Action "Credit ledger" returns the receipt for every deduction and refund, keyed by request_id, for 0 credits.',
     ],
   },
   pagination_warning: `Auto-pagination (the \`maxItems\` input) makes one billed request per page. ${REGISTRY_STATS.paginatableEndpoints} endpoints support it — check \`paginatable\` before sizing a run.`,

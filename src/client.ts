@@ -24,11 +24,11 @@ export interface ApiCallOptions {
    * `/v1/monitors/pause`. `{token}` placeholders are substituted the same way.
    */
   path?: string;
-  /** HTTP method. Defaults to GET. The stateful web routes also use POST/PATCH/DELETE. */
+  /** HTTP method. Defaults to GET. The stateful routes also use POST/PUT/PATCH/DELETE. */
   method?: HttpMethod;
   /**
    * Request parameters, forwarded verbatim. GET/DELETE send them as the query
-   * string (coerced to strings); POST/PATCH send them as a JSON body (types
+   * string (coerced to strings); POST/PUT/PATCH send them as a JSON body (types
    * preserved). Values used to fill `{token}` path placeholders are consumed.
    */
   params?: Record<string, unknown>;
@@ -53,7 +53,7 @@ export interface ApiCallResult {
   errorMessage?: string;
 }
 
-const BODY_METHODS = new Set<HttpMethod>(["POST", "PATCH"]);
+const BODY_METHODS = new Set<HttpMethod>(["POST", "PUT", "PATCH"]);
 
 /**
  * Makes a single call to the SocialCrawl API and returns a structured result.

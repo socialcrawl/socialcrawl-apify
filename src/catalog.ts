@@ -1,3 +1,4 @@
+import { COHORT_ENDPOINTS, COHORT_PLATFORM } from "./data/cohorts.js";
 import { ENDPOINTS } from "./data/endpoints.js";
 import { MONITOR_ENDPOINTS, MONITOR_PLATFORM } from "./data/monitors.js";
 import { PLATFORMS } from "./data/platforms.js";
@@ -12,9 +13,17 @@ import type { Endpoint, HttpMethod, Platform } from "./types.js";
  * which list an endpoint came from. Registry entries come first, so a platform
  * slug collision (there is none today) would resolve to the registry.
  */
-export const ALL_PLATFORMS: Platform[] = [...PLATFORMS, MONITOR_PLATFORM];
+export const ALL_PLATFORMS: Platform[] = [
+  ...PLATFORMS,
+  MONITOR_PLATFORM,
+  COHORT_PLATFORM,
+];
 
-export const ALL_ENDPOINTS: Endpoint[] = [...ENDPOINTS, ...MONITOR_ENDPOINTS];
+export const ALL_ENDPOINTS: Endpoint[] = [
+  ...ENDPOINTS,
+  ...MONITOR_ENDPOINTS,
+  ...COHORT_ENDPOINTS,
+];
 
 export function findPlatform(slug: string): Platform | undefined {
   return ALL_PLATFORMS.find((p) => p.slug === slug);
@@ -70,9 +79,9 @@ export function isPaginatable(e: Endpoint): boolean {
 }
 
 /**
- * Free-text search across the whole catalog. With 381 registry endpoints,
- * scanning one platform at a time is not a realistic way to find the right
- * call, so this ranks matches over the fields a person would actually search:
+ * Free-text search across the whole catalog. With well over five hundred
+ * endpoints, scanning one platform at a time is not a realistic way to find the
+ * right call, so this ranks matches over the fields a person would search:
  * the path, the summary, the description, and the param names.
  *
  * Scoring is deliberately blunt — an exact `platform/resource` hit outranks a

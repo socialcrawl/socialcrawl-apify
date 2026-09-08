@@ -9,7 +9,9 @@ import {
   publicPath,
   searchEndpoints,
 } from "./catalog.js";
+import { prepareCohortBody } from "./data/cohorts.js";
 import { prepareMonitorBody } from "./data/monitors.js";
+import { PLATFORMS } from "./data/platforms.js";
 
 describe("findEndpoint", () => {
   it("resolves a plain single-method endpoint without being told the verb", () => {
@@ -115,16 +117,95 @@ describe("searchEndpoints", () => {
 });
 
 describe("getEndpointsByPlatform", () => {
-  it("covers the four commerce platforms added in the latest wave", () => {
-    for (const [platform, count] of [
-      ["walmart", 5],
-      ["target", 5],
-      ["home_depot", 2],
-      ["ebay", 2],
-    ] as const) {
-      expect(getEndpointsByPlatform(platform), platform).toHaveLength(count);
-      expect(findPlatform(platform), platform).toBeDefined();
+  // Pinning literal counts here made this test a chore on every registry wave
+  // and told us nothing the generated data does not already know. What matters
+  // is that the lookup agrees with each platform's own declared count.
+  it("agrees with every platform's declared endpoint count", () => {
+    for (const p of PLATFORMS) {
+      expect(getEndpointsByPlatform(p.slug), p.slug).toHaveLength(p.endpointCount);
     }
+  });
+
+  it("resolves every platform slug the catalog advertises", () => {
+    for (const p of PLATFORMS) {
+      expect(findPlatform(p.slug), p.slug).toBeDefined();
+    }
+  });
+
+  // A named spot-check, so a wave that silently dropped a whole platform is
+  // caught by something more legible than an arithmetic mismatch. These are
+  // the surfaces added or materially reshaped in the 2026-09-08 wave.
+  it("carries the platforms added in the latest wave", () => {
+    for (const slug of [
+      "telegram",
+      "douyin",
+      "quora",
+      "apple_music",
+      "finance",
+      "jobs",
+      "us_congress_trades",
+      "on_page",
+      "g2",
+      "wayfair",
+      "etsy",
+      "sephora",
+      "aliexpress",
+      "hm",
+      "kohls",
+      "klarna",
+      "gumtree",
+      "yelp",
+    ]) {
+      expect(findPlatform(slug), slug).toBeDefined();
+      expect(getEndpointsByPlatform(slug).length, slug).toBeGreaterThan(0);
+    }
+  });
+
+  it("no longer carries google_finance, which became the finance platform", () => {
+    expect(findPlatform("google_finance")).toBeUndefined();
+    expect(getEndpointsByPlatform("finance").map((e) => e.resource)).toContain("quote");
+  });
+});
+
+describe("prepareCohortBody", () => {
+  it("parses array fields that arrived as JSON text", () => {
+    const body = prepareCohortBody({
+      members: '[{"external_id":"a","platform":"instagram","handle":"natgeo"}]',
+      keywords: '["acme","acme pro"]',
+      platforms: '["instagram"]',
+    });
+    expect(body.members).toEqual([
+      { external_id: "a", platform: "instagram", handle: "natgeo" },
+    ]);
+    expect(body.keywords).toEqual(["acme", "acme pro"]);
+    expect(body.platforms).toEqual(["instagram"]);
+  });
+
+  it("coerces the integer caps a form field would submit as strings", () => {
+    // The API's schemas are `.strict()` and reject "30" where 30 is required,
+    // so a value typed into a text field has to be repaired before it is sent.
+    const body = prepareCohortBody({
+      retention_days: "30",
+      max_credits: "30000",
+      max_items_per_identity: "100",
+      max_pages_per_identity: "3",
+      limit: "500",
+    });
+    expect(body).toEqual({
+      retention_days: 30,
+      max_credits: 30000,
+      max_items_per_identity: 100,
+      max_pages_per_identity: 3,
+      limit: 500,
+    });
+  });
+
+  it("leaves unparseable text and already-structured values alone", () => {
+    const members = [{ external_id: "a", platform: "tiktok", handle: "x" }];
+    expect(prepareCohortBody({ keywords: "not json" }).keywords).toBe("not json");
+    expect(prepareCohortBody({ members }).members).toBe(members);
+    // A non-integer must survive untouched so the API explains what is wrong.
+    expect(prepareCohortBody({ max_credits: "lots" }).max_credits).toBe("lots");
   });
 });
 

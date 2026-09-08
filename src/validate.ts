@@ -4,6 +4,7 @@ import {
   getEndpointsByPlatform,
   publicPath,
 } from "./catalog.js";
+import { COHORT_ID_PATTERN } from "./data/cohorts.js";
 import { MONITOR_ID_PATTERN } from "./data/monitors.js";
 import type { Endpoint, HttpMethod, OptionalParam } from "./types.js";
 
@@ -220,7 +221,7 @@ export function validateRequest(
     }
   }
 
-  // ── Monitor ids are interpolated into the URL path ───────────────────
+  // ── Stateful-family ids are interpolated into the URL path ───────────
   // Restricting them to URL-safe characters stops a crafted id from steering
   // the request — including a DELETE — at a different /v1 resource.
   if (resolved.platform === "monitors" && hasValue(params.monitor_id)) {
@@ -228,6 +229,17 @@ export function validateRequest(
       errors.push(
         `\`monitor_id\` must be 1-64 characters of letters, digits, "_" or "-" — got "${String(params.monitor_id)}". Run \`monitors/list\` to find the right id`,
       );
+    }
+  }
+
+  if (resolved.platform === "cohorts") {
+    for (const name of ["cohort_id", "query_id"] as const) {
+      if (!hasValue(params[name])) continue;
+      if (!COHORT_ID_PATTERN.test(String(params[name]))) {
+        errors.push(
+          `\`${name}\` must be a 21-character id or a UUID — got "${String(params[name])}". Take it from the \`create\` / \`query\` response`,
+        );
+      }
     }
   }
 

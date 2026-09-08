@@ -22,7 +22,7 @@ const live = apiKey ? describe : describe.skip;
 live("live SocialCrawl API", () => {
   const config = { apiKey, baseUrl: DEFAULT_BASE_URL };
 
-  it("fetches a TikTok profile and charges credits", async () => {
+  it("fetches a TikTok profile and bills it correctly", async () => {
     const r = await callApi(config, {
       platform: "tiktok",
       resource: "profile",
@@ -33,8 +33,19 @@ live("live SocialCrawl API", () => {
     const env = r.json as SocialCrawlSuccessResponse;
     expect(env.success).toBe(true);
     expect(env.platform).toBe("tiktok");
-    expect(env.credits_used).toBeGreaterThanOrEqual(1);
-    expect(typeof env.credits_remaining).toBe("number");
+    // A profile is cached for 15 minutes and a hit inside that window is FREE,
+    // so "charges >= 1" only holds on a cold cache — running the suite twice in
+    // a quarter of an hour used to turn this red for doing exactly the right
+    // thing. Assert the rule the API actually promises instead.
+    if (env.cached) {
+      // A cache hit does no ledger read at all, so it reports no balance
+      // either — echoing a stale number would be worse than saying nothing.
+      expect(env.credits_used).toBe(0);
+      expect(env.credits_remaining).toBeNull();
+    } else {
+      expect(env.credits_used).toBeGreaterThanOrEqual(1);
+      expect(typeof env.credits_remaining).toBe("number");
+    }
     expect(env.request_id).toBeTruthy();
     expect(env.data).toBeTruthy();
   }, 60_000);
