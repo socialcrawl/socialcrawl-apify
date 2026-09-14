@@ -21,7 +21,7 @@ export const PLATFORMS: Platform[] = [
   {
     slug: "tiktok",
     name: "TikTok",
-    endpointCount: 33,
+    endpointCount: 36,
     social: true,
     category: "major",
     description:
@@ -218,7 +218,7 @@ export const PLATFORMS: Platform[] = [
   {
     slug: "google_trends",
     name: "Google Trends",
-    endpointCount: 2,
+    endpointCount: 3,
     social: false,
     description:
       "Google Trends interest data — explore interest-over-time and regional interest for one or more keywords, and surface rising related queries for a seed keyword, with optional location, timeframe, and category filters.",

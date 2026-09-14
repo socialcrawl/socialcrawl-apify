@@ -108,6 +108,54 @@ export interface PaginationInfo {
   limitMax?: number;
 }
 
+/**
+ * Where the rows actually sit inside the `data` envelope, declared by the
+ * backend rather than guessed. `data.items[]` for a list (with `itemKey`
+ * naming the canonical object each row is), `data.<key>` for a singular
+ * object. Absent on passthrough archetypes, where the upstream shape is
+ * returned as-is and no canonical wrapper exists.
+ */
+export interface ResponseShape {
+  /** e.g. `"data.items[]"`, `"data.author"`, `"data.page"`. */
+  root: string;
+  /** The canonical object kind of each row, e.g. `"post"`, `"web_page"`. */
+  itemKey?: string;
+}
+
+/**
+ * One `include=<token>` row join, exactly as the registry declares it.
+ *
+ * The endpoint runs its normal read, then reads `sibling` for the rows it got
+ * back and folds `fills` onto each one. The charge is `creditsPerItem` per row
+ * actually filled, capped at `maxItems` rows (or at `batch.creditCap` where the
+ * sibling takes a batch), with cached and unfillable rows refunded.
+ */
+export interface HydrationJoin {
+  /** The param carrying the token. `include` throughout today. */
+  param: string;
+  token: string;
+  /** Public path of the endpoint whose read fills the rows, e.g. `pinterest/pin`. */
+  sibling: string;
+  siblingMethod?: string;
+  /** The exact canonical leaves this token fills, e.g. `post.engagement.saves`. */
+  fills: string[];
+  creditsPerItem: number;
+  /** Most rows this token will ever join on a single call. */
+  maxItems: number;
+  /** Rows joined when the caller sends no row limit, where it differs from `maxItems`. */
+  defaultRowLimit?: number;
+  /** The param that lowers the joined row count for this call. */
+  rowLimitParam?: string;
+  /** Where the sibling takes a batch, the whole join bills a flat cap. */
+  batch?: { size: number; creditCap: number };
+  /** Leaves the join replaces outright (a rounded count becoming the exact one). */
+  replaceApproximate?: string[];
+  /** Rows already in the sibling's cache are filled for free. */
+  cacheSibling?: true;
+  /** Codes the response's `_warnings` carries when the join could not complete. */
+  warnings?: { unavailable?: string; partial?: string };
+}
+
 export interface CacheInfo {
   category: string;
   /** Seconds. A cache hit inside this window costs 0 credits. `0` = never cached. */
@@ -145,6 +193,12 @@ export interface Endpoint {
   streaming?: string;
   /** Present when the endpoint pages. Send the universal `cursor`; style is informational. */
   pagination?: PaginationInfo;
+  /**
+   * The registry's own explicit paging declaration, where it makes one. Prefer
+   * `isPaginatable()` in ./catalog.ts, which folds this together with
+   * `pagination` and `singlePage` into the one answer callers actually want.
+   */
+  paginatable?: boolean;
   /** Reason this endpoint serves exactly one page even though it looks paginatable. */
   singlePage?: string;
   /** Reason this endpoint walks upstream pages server-side to fill one response. */
@@ -160,6 +214,18 @@ export interface Endpoint {
   actionLabel?: string;
   /** Extra contract facts worth surfacing before a call is billed. */
   contractDetails?: string[];
+  /** Topic labels from the registry, searched alongside the path and prose. */
+  tags?: string[];
+  /** Where this endpoint's rows live in the envelope. Drives row extraction. */
+  responseShape?: ResponseShape;
+  /** Per-leaf documentation, for responses whose fields are not self-evident. */
+  responseFields?: Record<string, string>;
+  /**
+   * The `include=…` row joins this endpoint offers, one entry per token.
+   * Present only on endpoints that actually bill for a second read — the
+   * free-form `include` on the composites and dossiers has no entry here.
+   */
+  hydration?: HydrationJoin[];
   /**
    * Explicit public path template, used by the non-registry stateful families
    * whose path is not `/v1/{platform}/{resource}` (`monitors`, `cohorts`).

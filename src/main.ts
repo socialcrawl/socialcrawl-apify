@@ -4,6 +4,7 @@ import {
   ALL_ENDPOINTS,
   ALL_PLATFORMS,
   getEndpointsByPlatform,
+  getHydratableEndpoints,
   publicPath,
   searchEndpoints,
 } from "./catalog.js";
@@ -12,10 +13,17 @@ import { DEFAULT_BASE_URL, SIGNUP_URL } from "./constants.js";
 import { prepareCohortBody } from "./data/cohorts.js";
 import { prepareMonitorBody } from "./data/monitors.js";
 import { REGISTRY_STATS } from "./data/stats.js";
+import {
+  describeJoins,
+  includeJoins,
+  joinCostImpact,
+  tokenCeiling,
+} from "./hydration.js";
 import { explainStop, runPaginated } from "./paginate.js";
 import {
   cacheNote,
   costRange,
+  costRangeForCall,
   estimateRunCost,
   PRICING_SUMMARY,
   pricingFor,
@@ -42,6 +50,7 @@ type Action =
   | "listEndpoints"
   | "searchEndpoints"
   | "listPricing"
+  | "listRowJoins"
   | "checkBalance"
   | "creditTransactions";
 
@@ -184,8 +193,71 @@ try {
       pricing_summary: PRICING_SUMMARY,
       endpoints: rows,
     });
+    const joined = rows.filter((r) => r.has_row_join).length;
     await Actor.setStatusMessage(
-      `Priced ${rows.length} endpoint(s)${scoped ? ` for ${platform}` : " across all platforms"} — ${metered} of them metered (budget against max_credits).`,
+      `Priced ${rows.length} endpoint(s)${scoped ? ` for ${platform}` : " across all platforms"} — ${metered} of them metered (budget against max_credits)${joined > 0 ? `, ${joined} with an \`include=…\` row join that lifts the ceiling` : ""}.`,
+    );
+    await Actor.exit();
+  }
+
+  // ── Row joins: the endpoints where one call can do the work of many ───
+  // `include=…` runs a second lookup against every row the endpoint returned
+  // and bills only for the rows it actually filled. It is the single biggest
+  // lever on both cost and call count, and the hardest thing to discover from
+  // a flat endpoint list — so it gets its own free, key-less action.
+  if (action === "listRowJoins") {
+    const platform = (input.platform ?? "").trim();
+    const all = getHydratableEndpoints();
+    const source =
+      allPlatforms || !platform ? all : all.filter((e) => e.platform === platform);
+    if (source.length === 0) {
+      await failGracefully(
+        platform && !allPlatforms
+          ? `No endpoint on platform "${platform}" offers an \`include=…\` row join. Tick \`allPlatforms\` to list all ${all.length} that do.`
+          : "No row-joinable endpoints are present in this Actor's bundled catalog.",
+      );
+    }
+
+    const rows = source.map((e) => {
+      const plain = e.pricing.cost;
+      const { max } = costRange(e);
+      // The joins' own declared ceiling, NOT `max - plain`. On the four
+      // endpoints that also meter for other reasons the two differ sharply —
+      // `threads/user/posts` spans 1-165, but only 15 of that is the join.
+      const joinCeiling = (e.hydration ?? []).reduce(
+        (n, h) => n + tokenCeiling(h),
+        0,
+      );
+      return {
+        kind: "row_join",
+        platform: e.platform,
+        resource: e.resource,
+        public_path: publicPath(e),
+        summary: e.summary,
+        plain_call_credits: plain,
+        extra_credits_max: joinCeiling,
+        joined_call_max_credits: plain + joinCeiling,
+        /** The endpoint's whole band, which may include metering beyond the join. */
+        endpoint_max_credits: max,
+        applies_to: e.responseShape?.root.endsWith("items[]")
+          ? "each row"
+          : "the response",
+        max_page_size: e.pagination?.limitMax ?? null,
+        pricing_note: pricingNote(e),
+        joins: describeJoins(e),
+      };
+    });
+
+    await Actor.pushData(rows);
+    await Actor.setValue("OUTPUT", {
+      action,
+      ...(allPlatforms || !platform ? { scope: "all platforms" } : { platform }),
+      count: rows.length,
+      how_it_works: PRICING_SUMMARY.row_joins,
+      endpoints: rows,
+    });
+    await Actor.setStatusMessage(
+      `${rows.length} endpoint(s) accept an \`include=…\` row join — one call instead of one per row. Each row shows the plain price, the joined ceiling, and what the join fills in. 0 credits.`,
     );
     await Actor.exit();
   }
@@ -529,7 +601,29 @@ try {
   }
 
   const plannedPages = maxItems > 0 ? maxPages : 1;
-  const estimate = estimateRunCost(endpoint, plannedPages);
+  const estimate = estimateRunCost(endpoint, plannedPages, params);
+
+  // A join is opt-in and can multiply a page's price by its row count, so it is
+  // never allowed to be a silent line on the invoice — and the endpoints that
+  // offer one but were not asked are worth naming too, because the whole point
+  // of the join is to save the caller N follow-up calls.
+  const joinImpact = joinCostImpact(endpoint, params);
+  if (joinImpact.note) {
+    log.info(joinImpact.note);
+  } else {
+    const declared = endpoint.hydration ?? [];
+    if (declared.length > 0) {
+      const offered = declared.map((h) => h.token).join(",");
+      const ceiling = declared.reduce((n, h) => n + tokenCeiling(h), 0);
+      const fills = declared.flatMap((h) => h.fills).slice(0, 4).join(", ");
+      log.info(
+        `${publicPath(endpoint)} can fill more of every row in this same call: ` +
+          `\`${declared[0]!.param}=${offered}\` adds ${fills}${declared.flatMap((h) => h.fills).length > 4 ? " and more" : ""}. ` +
+          `It bills only for the rows it fills (up to ${ceiling} extra credits) and saves you one ` +
+          `follow-up request per row. Run action "Row joins" for what each token adds.`,
+      );
+    }
+  }
 
   // The cohort POST/PUT routes REJECT a call with no `Idempotency-Key`, and the
   // Apify form has no natural place to make a user invent a UUID. Generating
@@ -574,6 +668,24 @@ try {
         };
       })(),
       pricing: pricingFor(endpoint),
+      // `pricing` prices the ENDPOINT (the whole band it can land in);
+      // `cost_estimate` below prices THIS call. On a row-join endpoint those
+      // are different numbers, and which one applies is decided here.
+      row_join: (() => {
+        const joins = includeJoins(endpoint);
+        if (joins.length === 0) return null;
+        const { min, max } = costRangeForCall(endpoint, params);
+        return {
+          requested: joinImpact.requested,
+          tokens_sent: joinImpact.tokens,
+          this_call_credits: min === max ? min : `${min}-${max}`,
+          extra_credits_max: joinImpact.extraCreditsMax,
+          note:
+            joinImpact.note ??
+            "No join requested, so this is priced as the plain call. Add an `include` token to the params to fill more of every row in the same request.",
+          available: describeJoins(endpoint),
+        };
+      })(),
       auto_pagination: {
         supported: canPage,
         enabled: maxItems > 0,
@@ -626,7 +738,10 @@ try {
         page.envelope,
         page.result.raw,
         page.result.path,
-        maxItems > 0 ? { pageIndex: page.pageIndex } : {},
+        {
+          endpoint,
+          ...(maxItems > 0 ? { pageIndex: page.pageIndex } : {}),
+        },
       );
       totalRows += rows.length;
       await Actor.pushData(rows);
@@ -688,6 +803,7 @@ try {
  */
 function describeEndpoint(e: Endpoint): Record<string, unknown> {
   const { min, max } = costRange(e);
+  const joins = describeJoins(e);
   return {
     platform: e.platform,
     resource: e.resource,
@@ -696,6 +812,7 @@ function describeEndpoint(e: Endpoint): Record<string, unknown> {
     summary: e.summary,
     description: e.description,
     archetype: e.archetype,
+    ...(e.tags?.length ? { tags: e.tags } : {}),
     ...(e.family ? { family: e.family } : {}),
     ...(e.group ? { group: e.group } : {}),
     ...(e.actionLabel ? { action_label: e.actionLabel } : {}),
@@ -706,8 +823,14 @@ function describeEndpoint(e: Endpoint): Record<string, unknown> {
     max_credits: max,
     pricing_model: e.pricing.model,
     pricing_note: pricingNote(e),
+    ...(e.pricing.description ? { pricing_description: e.pricing.description } : {}),
     cache_ttl_seconds: e.cache.ttlSeconds,
     cache_note: cacheNote(e),
+
+    // The `include=…` joins: what more this one call can return, and what that
+    // does to the price. `min_credits` above is the plain call; `max_credits`
+    // is this join fully exercised.
+    ...(joins ? { row_joins: joins } : {}),
 
     required_params: e.params.map((p) => ({
       name: p.name,
@@ -742,6 +865,20 @@ function describeEndpoint(e: Endpoint): Record<string, unknown> {
     ...(e.requiresIdempotencyKey ? { requires_idempotency_key: true } : {}),
     ...(e.emptyOn404 ? { empty_result_is_not_an_error: true } : {}),
     ...(e.contractDetails?.length ? { contract_details: e.contractDetails } : {}),
+
+    // Where the rows land in the envelope, and what each one is. This is what
+    // makes the dataset predictable: `data.items[]` becomes one row per item,
+    // `data.author` becomes a single row, and `_sc_item_kind` on every row
+    // names the canonical object so mixed-endpoint datasets stay sortable.
+    ...(e.responseShape
+      ? {
+          response_root: e.responseShape.root,
+          ...(e.responseShape.itemKey
+            ? { response_item_kind: e.responseShape.itemKey }
+            : {}),
+        }
+      : {}),
+    ...(e.responseFields ? { response_fields: e.responseFields } : {}),
   };
 }
 

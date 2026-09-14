@@ -20,30 +20,32 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     optionalParams: [
       { name: "formats", type: "string", description: "Comma-separated output formats such as markdown,screenshot.", example: "markdown" },
-      { name: "only_main_content", type: "boolean" },
-      { name: "wait_for", type: "integer" },
-      { name: "mobile", type: "boolean" },
-      { name: "timeout", type: "integer" },
-      { name: "max_age", type: "integer" },
-      { name: "location_country", type: "string" },
-      { name: "screenshot_full_page", type: "boolean" },
-      { name: "include_tags", type: "string" },
-      { name: "exclude_tags", type: "string" },
+      { name: "only_main_content", type: "boolean", description: "Strip nav, headers, footers and sidebars and keep the article body. Default true; send false when you need the whole page, including the chrome." },
+      { name: "wait_for", type: "integer", description: "Milliseconds to wait after load before capturing, for pages that render their content in JavaScript. Leave unset unless the page comes back empty or half-built." },
+      { name: "mobile", type: "boolean", description: "Render in a mobile viewport with a mobile user agent. Use it when the site serves a different layout to phones." },
+      { name: "timeout", type: "integer", description: "Hard cap on the page load in milliseconds, 1 to 30000. A page that exceeds it fails and is refunded rather than returning a partial capture." },
+      { name: "max_age", type: "integer", description: "Accept an upstream-cached copy up to this many milliseconds old, which is faster and still one credit. Default 172800000 (48 hours); send 0 to force a live fetch." },
+      { name: "location_country", type: "string", description: "ISO 3166-1 alpha-2 country code to fetch from, e.g. 'us' or 'de'. Use it for geo-varying pages such as pricing or availability." },
+      { name: "screenshot_full_page", type: "boolean", description: "When a screenshot format is requested, capture the entire scrollable page instead of the visible viewport." },
+      { name: "include_tags", type: "string", description: "CSV of CSS selectors or HTML tags to keep, e.g. 'article,main'. Everything outside them is dropped. Use it to pin extraction to a known container." },
+      { name: "exclude_tags", type: "string", description: "CSV of CSS selectors or HTML tags to drop, e.g. 'nav,footer,.cookie-banner'. Applied after include_tags." },
       { name: "proxy", type: "enum", enumValues: ["basic", "auto", "enhanced"], description: "Proxy tier: basic, auto, or enhanced." },
-      { name: "pdf_parse", type: "boolean" },
-      { name: "block_ads", type: "boolean" },
-      { name: "remove_base64_images", type: "boolean" },
+      { name: "pdf_parse", type: "boolean", description: "Parse the target as a PDF and return its extracted text. Send it when the URL points at a PDF rather than an HTML page." },
+      { name: "block_ads", type: "boolean", description: "Block ad and tracker requests, which is faster and quieter. Default true." },
+      { name: "remove_base64_images", type: "boolean", description: "Drop inline base64-encoded images from the returned content instead of carrying them in the payload. Default true." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 5 },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 5, description: "1 credit for a standard scrape. It rises to a flat 5 when the fetch needs more than a plain request: `proxy=auto`, `proxy=enhanced`, or `pdf_parse=true`. Nothing else moves the price, so screenshots, tag filters, `wait_for` and a mobile viewport are all included in the 1 credit" },
     archetype: "WebPage",
     summary: "Scrape a web page",
     description:
       "Fetches a public web page and returns clean content, metadata, and optional media in the unified WebPage schema.",
     cache: { category: "post", ttlSeconds: 0 },
     group: "Scrape & Extract",
+    tags: ["web"],
+    responseShape: { root: "data.page" },
   },
   {
     platform: "web",
@@ -54,20 +56,20 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     optionalParams: [
       { name: "sources", type: "string", description: "Comma-separated sources: web,news,images." },
-      { name: "categories", type: "string" },
+      { name: "categories", type: "string", description: "CSV of source categories to restrict the search to, e.g. 'github,research'. Omit for an unrestricted web search." },
       { name: "limit", type: "integer", description: "Results per source, from 1 to 100.", example: "10" },
-      { name: "country", type: "string" },
-      { name: "location", type: "string" },
-      { name: "time_range", type: "string" },
-      { name: "sort_by_date", type: "boolean" },
-      { name: "include_domains", type: "string" },
-      { name: "exclude_domains", type: "string" },
-      { name: "include_content", type: "boolean" },
+      { name: "country", type: "string", description: "ISO 3166-1 alpha-2 country code the search is run from, e.g. 'US' (default) or 'GB'. Changes which results rank." },
+      { name: "location", type: "string", description: "Free-text locality to bias results towards, e.g. 'London, United Kingdom'. Finer-grained than country." },
+      { name: "time_range", type: "string", description: "Recency window as a Google `tbs` value: 'qdr:d' past day, 'qdr:w' past week, 'qdr:m' past month, 'qdr:y' past year." },
+      { name: "sort_by_date", type: "boolean", description: "Sort newest-first instead of by relevance. Combines with time_range rather than replacing it." },
+      { name: "include_domains", type: "string", description: "CSV of domains to restrict results to, e.g. 'nytimes.com,ft.com'. Cannot be combined with exclude_domains - sending both is a 400 before billing." },
+      { name: "exclude_domains", type: "string", description: "CSV of domains to drop from the results. Cannot be combined with include_domains." },
+      { name: "include_content", type: "boolean", description: "Also scrape each result and return its page content as markdown, not just the SERP row. This is what makes the call expensive: it scrapes one page per result, which is why the range runs to 120 credits." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 2,
-    pricing: { cost: 2, tier: "standard", ladderCost: 1, model: "metered", minCost: 2, maxCost: 120, pageSize: 10 },
+    pricing: { cost: 2, tier: "standard", ladderCost: 1, model: "metered", minCost: 2, maxCost: 120, pageSize: 10, description: "2 credits per 10 results, so `limit` up to 10 costs 2, 11-20 costs 4, and the 100 maximum costs 20. `include_content=true` adds 1 credit per result, because it scrapes each result page as well as reading the SERP row - that is what takes a 100-result content search to the 120-credit ceiling. The hold settles down to the work actually done" },
     archetype: "WebPageList",
     summary: "Search the web",
     description:
@@ -75,6 +77,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search & Discover",
+    tags: ["web"],
+    responseShape: { root: "data.items[]", itemKey: "web_page" },
   },
   {
     platform: "web",
@@ -86,10 +90,10 @@ export const ENDPOINTS: Endpoint[] = [
     optionalParams: [
       { name: "search", type: "string", description: "Optional path or keyword filter." },
       { name: "limit", type: "integer", description: "Maximum URLs to return, up to 5000.", example: "100" },
-      { name: "sitemap", type: "enum", enumValues: ["include", "skip", "only"] },
-      { name: "include_subdomains", type: "boolean" },
-      { name: "ignore_query_parameters", type: "boolean" },
-      { name: "fresh", type: "boolean" },
+      { name: "sitemap", type: "enum", enumValues: ["include", "skip", "only"], description: "How to use the site's sitemap.xml: 'include' (default) to merge it with crawled links, 'only' to trust it alone, 'skip' to ignore it." },
+      { name: "include_subdomains", type: "boolean", description: "Follow links onto subdomains of the root URL. Default true." },
+      { name: "ignore_query_parameters", type: "boolean", description: "Treat URLs differing only by query string as one URL, which keeps paginated and tracking-tagged duplicates out of the result. Default true." },
+      { name: "fresh", type: "boolean", description: "Bypass the upstream cache and re-discover the site now. Slower; use it when the map is known to be stale." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
@@ -102,6 +106,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search & Discover",
+    tags: ["web"],
+    responseShape: { root: "data.items[]", itemKey: "web_page" },
   },
   {
     platform: "web",
@@ -113,21 +119,23 @@ export const ENDPOINTS: Endpoint[] = [
     optionalParams: [
       { name: "schema", type: "string", description: "JSON object schema describing the data to return." },
       { name: "prompt", type: "string", description: "Plain-language extraction instruction.", example: "Extract plan names and prices." },
-      { name: "only_main_content", type: "boolean" },
-      { name: "timeout", type: "integer" },
-      { name: "max_age", type: "integer" },
-      { name: "proxy", type: "enum", enumValues: ["basic", "auto", "enhanced"] },
+      { name: "only_main_content", type: "boolean", description: "Strip nav, headers, footers and sidebars and keep the article body. Default true; send false when you need the whole page, including the chrome." },
+      { name: "timeout", type: "integer", description: "Hard cap on each page load in milliseconds, 1 to 30000. A page that exceeds it fails and is refunded rather than returning a partial capture." },
+      { name: "max_age", type: "integer", description: "Accept an upstream-cached copy up to this many milliseconds old, which is faster and costs the same. Default 172800000 (48 hours); send 0 to force a live fetch." },
+      { name: "proxy", type: "enum", enumValues: ["basic", "auto", "enhanced"], description: "Proxy tier: basic, auto, or enhanced. Raise it only when a site blocks the default tier - enhanced is slower." },
     ],
     oneOfGroups: [["schema", "prompt"]],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 5 },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 5, description: "A flat 5 credits. It runs through the metered pricer for consistency with the rest of the web surface, but nothing in your query changes the charge" },
     archetype: "WebPage",
     summary: "Extract structured data from a web page",
     description:
       "Fetches one web page and returns structured extraction output under the WebPage extraction field.",
     cache: { category: "post", ttlSeconds: 0 },
     group: "Scrape & Extract",
+    tags: ["web"],
+    responseShape: { root: "data.page" },
   },
   {
     platform: "web",
@@ -138,13 +146,13 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     optionalParams: [
       { name: "limit", type: "integer", description: "Maximum pages to crawl.", example: "10" },
-      { name: "max_depth", type: "integer" },
-      { name: "allow_backward_links", type: "boolean" },
-      { name: "allow_external_links", type: "boolean" },
-      { name: "include_paths", type: "string" },
-      { name: "exclude_paths", type: "string" },
+      { name: "max_depth", type: "integer", description: "How many link hops from the root URL to follow. 1 is the root page and the pages it links to. Leave unset to let `limit` alone bound the crawl." },
+      { name: "allow_backward_links", type: "boolean", description: "Crawl the whole domain rather than only URLs under the starting path. Send it when the root URL is a deep page but you want the entire site." },
+      { name: "allow_external_links", type: "boolean", description: "Follow links off the domain. Off by default, and easy to make expensive: `limit` is the only thing bounding it." },
+      { name: "include_paths", type: "string", description: "CSV of URL path patterns to crawl, e.g. '/blog/.*,/docs/.*'. Everything else is skipped, which is the cheapest way to narrow a crawl." },
+      { name: "exclude_paths", type: "string", description: "CSV of URL path patterns to skip, e.g. '/tag/.*'. Applied after include_paths." },
       { name: "webhook_url", type: "string", description: "Optional webhook URL for terminal job updates." },
-      { name: "formats", type: "string" },
+      { name: "formats", type: "string", description: "CSV of output formats for each crawled page, e.g. 'markdown' (default) or 'markdown,html'." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
@@ -158,6 +166,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "search", ttlSeconds: 0 },
     group: "Crawl Jobs",
     actionLabel: "Start Crawl",
+    tags: ["web"],
   },
   {
     platform: "web",
@@ -168,10 +177,10 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     optionalParams: [
       { name: "ignore_invalid_urls", type: "boolean", description: "Skip invalid URLs instead of failing the job." },
-      { name: "formats", type: "string" },
-      { name: "only_main_content", type: "boolean" },
-      { name: "proxy", type: "enum", enumValues: ["basic", "auto", "enhanced"] },
-      { name: "webhook_url", type: "string" },
+      { name: "formats", type: "string", description: "CSV of output formats for each URL, e.g. 'markdown' (default) or 'markdown,html'." },
+      { name: "only_main_content", type: "boolean", description: "Strip nav, headers, footers and sidebars on every URL and keep the article body. Default true." },
+      { name: "proxy", type: "enum", enumValues: ["basic", "auto", "enhanced"], description: "Proxy tier applied to every URL: basic, auto, or enhanced." },
+      { name: "webhook_url", type: "string", description: "HTTPS URL that receives a signed callback when the job reaches a terminal state, so you do not have to poll GET /v1/web/jobs/{job_id}." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
@@ -185,6 +194,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "post", ttlSeconds: 0 },
     group: "Crawl Jobs",
     actionLabel: "Start Batch Scrape",
+    tags: ["web"],
   },
   {
     platform: "web",
@@ -208,6 +218,8 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "search", ttlSeconds: 0 },
     group: "Crawl Jobs",
     actionLabel: "List Jobs",
+    tags: ["web"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "web",
@@ -229,6 +241,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "search", ttlSeconds: 0 },
     group: "Crawl Jobs",
     actionLabel: "Job Status",
+    tags: ["web"],
   },
   {
     platform: "web",
@@ -250,6 +263,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "search", ttlSeconds: 0 },
     group: "Crawl Jobs",
     actionLabel: "Cancel Job",
+    tags: ["web"],
   },
   {
     platform: "web",
@@ -274,6 +288,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "post", ttlSeconds: 0 },
     group: "Crawl Jobs",
     actionLabel: "Run Agent",
+    tags: ["web"],
   },
   {
     platform: "web",
@@ -289,11 +304,11 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "schedule_text", type: "string", description: "Plain-language schedule, such as every 15 minutes." },
       { name: "schedule_cron", type: "string", description: "Cron schedule. Mutually exclusive with schedule_text." },
       { name: "timezone", type: "string", description: "IANA timezone for the schedule." },
-      { name: "webhook_url", type: "string" },
-      { name: "query", type: "string" },
-      { name: "goal", type: "string" },
-      { name: "retention_days", type: "integer" },
-      { name: "judge_enabled", type: "boolean" },
+      { name: "webhook_url", type: "string", description: "HTTPS URL that receives a signed callback on every check, so you do not have to poll the checks list." },
+      { name: "query", type: "string", description: "Search query the monitor re-runs, used only when mode=search. On a scrape monitor the url is the target instead." },
+      { name: "goal", type: "string", description: "Plain-language description of what a meaningful change looks like, used by the judge to decide whether a check is worth notifying about. A search monitor needs this unless judge_enabled is false." },
+      { name: "retention_days", type: "integer", description: "How long to keep each check's captured result, 1 to 365 days. Older checks are dropped." },
+      { name: "judge_enabled", type: "boolean", description: "Run the LLM judge over each check so you are notified on meaningful changes rather than every byte-level diff. Defaults on, except on a search monitor with no goal." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
@@ -307,6 +322,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "search", ttlSeconds: 0 },
     group: "Monitors",
     actionLabel: "Create Monitor",
+    tags: ["web"],
   },
   {
     platform: "web",
@@ -330,6 +346,8 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "search", ttlSeconds: 0 },
     group: "Monitors",
     actionLabel: "List Monitors",
+    tags: ["web"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "web",
@@ -351,6 +369,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "search", ttlSeconds: 0 },
     group: "Monitors",
     actionLabel: "Monitor Details",
+    tags: ["web"],
   },
   {
     platform: "web",
@@ -360,11 +379,11 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "monitor_id", required: true, description: "Monitor id (wm_...) returned by POST /v1/web/monitors as data.monitor_id.", example: "wm_5d1p8s3k7" },
     ],
     optionalParams: [
-      { name: "status", type: "enum", enumValues: ["active", "paused"], example: "paused" },
-      { name: "cadence_minutes", type: "integer" },
-      { name: "schedule_text", type: "string" },
-      { name: "schedule_cron", type: "string" },
-      { name: "timezone", type: "string" },
+      { name: "status", type: "enum", enumValues: ["active", "paused"], description: "Set to paused to stop the schedule without losing history, or active to resume it.", example: "paused" },
+      { name: "cadence_minutes", type: "integer", description: "New check interval in minutes: 5-60, or a whole number of hours up to 1440 (120, 180, ...). Hour cadences are scheduled as cron." },
+      { name: "schedule_text", type: "string", description: "New plain-language schedule, such as every 15 minutes. Upstream accepts 1-60 minutes in this form; use schedule_cron for anything longer." },
+      { name: "schedule_cron", type: "string", description: "New cron schedule. Mutually exclusive with schedule_text." },
+      { name: "timezone", type: "string", description: "IANA timezone the new schedule is interpreted in, e.g. 'Europe/London'. Defaults to UTC." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
@@ -378,6 +397,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "search", ttlSeconds: 0 },
     group: "Monitors",
     actionLabel: "Pause / Resume Monitor",
+    tags: ["web"],
   },
   {
     platform: "web",
@@ -399,6 +419,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "search", ttlSeconds: 0 },
     group: "Monitors",
     actionLabel: "Delete Monitor",
+    tags: ["web"],
   },
   {
     platform: "web",
@@ -408,7 +429,7 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "monitor_id", required: true, description: "Monitor id (wm_...) returned by POST /v1/web/monitors as data.monitor_id.", example: "wm_5d1p8s3k7" },
     ],
     optionalParams: [
-      { name: "limit", type: "integer" },
+      { name: "limit", type: "integer", description: "How many checks to return, newest first. Page size, capped at 100." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
@@ -423,6 +444,8 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "search", ttlSeconds: 0 },
     group: "Monitors",
     actionLabel: "Check History",
+    tags: ["web"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "web",
@@ -433,8 +456,8 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     optionalParams: [
       { name: "ttl_seconds", type: "integer", description: "Session TTL in seconds.", example: "60" },
-      { name: "activity_ttl_seconds", type: "integer" },
-      { name: "stream_web_view", type: "boolean" },
+      { name: "activity_ttl_seconds", type: "integer", description: "Idle timeout in seconds: the session closes this long after the last interaction, even if ttl_seconds has not elapsed. Closing early settles the hold down, so it lowers the bill." },
+      { name: "stream_web_view", type: "boolean", description: "Return a live view URL in the response so a human can watch the session drive the page." },
     ],
     oneOfGroups: [],
     creditTier: "advanced",
@@ -449,6 +472,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "post", ttlSeconds: 0 },
     group: "Browser Sessions",
     actionLabel: "Open Session",
+    tags: ["web"],
   },
   {
     platform: "web",
@@ -471,6 +495,8 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "post", ttlSeconds: 0 },
     group: "Browser Sessions",
     actionLabel: "List Sessions",
+    tags: ["web"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "web",
@@ -492,6 +518,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "post", ttlSeconds: 0 },
     group: "Browser Sessions",
     actionLabel: "Session Details",
+    tags: ["web"],
   },
   {
     platform: "web",
@@ -503,7 +530,7 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     optionalParams: [
       { name: "language", type: "enum", enumValues: ["node", "python", "bash"], description: "Execution language: node, python, or bash.", example: "node" },
-      { name: "timeout", type: "integer", description: "Execution timeout in seconds." },
+      { name: "timeout", type: "integer", description: "Execution timeout in seconds, from 1 to 40 (default 30). Larger values are capped at 40 so the call always returns inside the request window; a script still running at the cap returns a 504 UPSTREAM_ERROR envelope. Split longer work across several calls to the same session." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
@@ -517,6 +544,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "post", ttlSeconds: 0 },
     group: "Browser Sessions",
     actionLabel: "Run in Session",
+    tags: ["web"],
   },
   {
     platform: "web",
@@ -538,6 +566,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "post", ttlSeconds: 0 },
     group: "Browser Sessions",
     actionLabel: "Close Session",
+    tags: ["web"],
   },
   {
     platform: "web",
@@ -547,9 +576,9 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "file", required: true, description: "Multipart file field.", example: "document.pdf" },
     ],
     optionalParams: [
-      { name: "filename", type: "string", example: "document.pdf" },
+      { name: "filename", type: "string", description: "Name to record for the uploaded file, e.g. 'report.pdf'. Used for the parsed document's title when the file carries none.", example: "document.pdf" },
       { name: "mime_type", type: "string", description: "Optional MIME type override." },
-      { name: "url", type: "string" },
+      { name: "url", type: "string", description: "Public URL to fetch and parse instead of uploading a file. Send either this or the file field." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
@@ -562,8 +591,10 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "post", ttlSeconds: 0 },
     group: "Scrape & Extract",
     actionLabel: "Parse Document",
+    tags: ["web"],
+    responseShape: { root: "data.page" },
   },
-  // --- tiktok (33 endpoints) ---
+  // --- tiktok (36 endpoints) ---
   {
     platform: "tiktok",
     resource: "profile",
@@ -580,8 +611,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Author",
     summary: "Get TikTok user profile",
     description:
-      "Returns public profile information for a TikTok user: follower count, following count, total likes, bio, avatar URL, and verification status. `author.followers` is the unrounded integer when the source exposes it. When only the public rounded figure is available, the same integer field is returned and `author.ext.followers_approximate` is true. Pass either `handle` or `user_id`. Profiles behind TikTok's 'audience controls' (a login/age wall in the browser) now return their profile record normally; their posts are readable through `/v1/tiktok/profile/videos` with the same handle. A profile with no publicly readable record still returns `404 RESOURCE_NOT_FOUND` with `error.details.reason` set to `account_private`. A handle the platform reports as unused returns the same status with `reason` set to `account_gone`; because TikTok numeric ids are permanent, re-running the lookup with `user_id` tells a renamed account from a removed one.",
+      "Returns public profile information for a TikTok user: follower count, following count, total likes, bio, avatar URL, verification status, and the ISO 3166-1 alpha-2 region of the account at `author.location` (the same leaf `/v1/tiktok/profile/region` returns, included here so you do not need a second call). `author.followers` is the unrounded integer when the source exposes it. When only the public rounded figure is available, the same integer field is returned and `author.ext.followers_approximate` is true. Pass either `handle` or `user_id`. Profiles behind TikTok's 'audience controls' (a login/age wall in the browser) now return their profile record normally; their posts are readable through `/v1/tiktok/profile/videos` with the same handle. A profile with no publicly readable record still returns `404 RESOURCE_NOT_FOUND` with `error.details.reason` set to `account_private`. A handle the platform reports as unused returns the same status with `reason` set to `account_gone`; because TikTok numeric ids are permanent, re-running the lookup with `user_id` tells a renamed account from a removed one. `author.location` can be absent when the region source is unavailable; the rest of the profile is still returned.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "tiktok",
@@ -606,6 +639,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a paginated list of recent public videos posted by a TikTok user. Each video includes view count, like count, comment count, share count, caption, and thumbnail URL. Profiles with TikTok 'audience controls' enabled (a login/age wall in the browser) are supported when looked up by `handle`; page-1 order on those gated accounts may follow recency rather than pinned-first.",
     pagination: { style: "cursor", nativeParam: "max_cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "tiktok",
@@ -628,6 +663,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns detailed information about a specific TikTok video including view count, like count, comment count, share count, caption, music info, author details, and video metadata. When the creator added on-screen text with TikTok's built-in text tool, the overlay text is returned in `data.post.ext.on_screen_texts` (absent when the video has none: text burned in with an external editor is not detectable from post data).",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "tiktok",
@@ -650,6 +687,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a list of comments on a specific TikTok video. Each comment includes the author username, comment text, like count, reply count, and creation timestamp.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "tiktok",
@@ -673,6 +712,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "cursor", nativeParam: "cursor" },
     emptyOn404: true,
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "tiktok",
@@ -693,13 +734,15 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [["comment_url", "post_url"]],
     creditTier: "standard",
     creditCost: 2,
-    pricing: { cost: 2, tier: "standard", ladderCost: 1, model: "metered", minCost: 2, maxCost: 6 },
+    pricing: { cost: 2, tier: "standard", ladderCost: 1, model: "metered", minCost: 2, maxCost: 6, description: "2 credits for a standard lookup, 6 with `deep_scan=true`, which keeps paging the thread when the comment is not in the first pages. Reach for deep_scan only after a standard lookup comes back not-found" },
     archetype: "Comment",
     summary: "Look up one TikTok comment by URL or id",
     description:
       "Resolves a single TikTok comment to a live comment object (current like count, reply count, pinned flag, author, timestamp) without you paginating the comment section. Pass `comment_url` (a `.../@{handle}/video/{id}?comment_id={cid}` link, an `m.tiktok.com` share link, or a `vm.tiktok.com`/`.../t/` shortlink: resolved automatically) OR `post_url` + `comment_id`. For a reply, also pass `parent_comment_id` (a reply URL does not carry its parent). Instead of a comment id you can search the comment section: `author_username` (find a specific author's comments) or `text_contains` (exact snippet) return up to `max` matches. The response includes a `lookup.position_hint`: pass it back on a later lookup of the same comment to make the re-check nearly free. Flat 2 credits (6 with `deep_scan=true`, which widens the scan budget); a not-found returns 404 and is fully refunded.",
     cache: { category: "comments", ttlSeconds: 300 },
     family: "prism",
+    tags: ["tiktok"],
+    responseShape: { root: "data.comment" },
   },
   {
     platform: "tiktok",
@@ -725,16 +768,19 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches TikTok for videos matching a keyword query. Returns a list of matching videos with view counts, like counts, captions, author info, and thumbnails. Search rows carry no follower count, but every row carries post.ext.author_id (the creator's numeric user id) and post.author.username: pass either to /v1/tiktok/profile (?user_id= or ?handle=) for the creator's current follower count on author.followers at 1 credit, or batch up to 50 usernames per call through POST /v1/prism/profiles at 1 credit per resolved profile. Deduplicate creators across the whole crawl first; the same creators recur across keywords.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "tiktok",
     resource: "trending",
     method: "GET",
     params: [
-      { name: "region", required: true, description: "ISO 3166-1 alpha-2 country code (e.g., US, GB, KR)", example: "US" },
+      { name: "region", required: true, description: "ISO 3166-1 alpha-2 country code (e.g., US, GB, DE). On the default feed it sets the country the request is routed through and does not filter videos; with `feed=local` it sets the country the For You feed is built for. Either way, check `ext.region` on each row for the country a video is actually from.", example: "US" },
     ],
     optionalParams: [
-      { name: "trim", type: "boolean", description: "Set to true to get a trimmed response." },
+      { name: "trim", type: "boolean", description: "Accepted for compatibility; it has no effect with `feed=local`." },
+      { name: "feed", type: "enum", enumValues: ["global", "local"], description: "`global` (default): the web trending feed routed through `region`, mostly worldwide content, about 13 videos in 3 to 12 seconds. `local`: the For You feed for a phone in `region`, most videos from that country, a median of 24 videos in 12 to 35 seconds, and a refunded 503 when none come back." },
     ],
     oneOfGroups: [],
     creditTier: "advanced",
@@ -743,9 +789,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "PostList",
     summary: "Get TikTok trending feed",
     description:
-      "Returns trending videos for a specific region. Each video includes view count, like count, caption, author info, and thumbnail.",
+      "Returns a page of popular TikTok videos for a country, with view, like, comment, share and save counts, caption, author and thumbnail. Two feeds, chosen with `feed`. The default (`feed=global`) is TikTok's web trending feed fetched through a connection in `region`: `region` sets where the request comes from, not where the videos come from, and for most countries the feed is one worldwide pool. Measured 13/09/2026 over 12 calls in six countries, 22% of its videos were registered in the requested country (US 65%, BR 43%, GB 9%, FR 8%, JP 6%, DE 0%). It returns about 13 videos in 3 to 12 seconds. `feed=local` is the For You feed TikTok's app serves to a phone set to `region`, so most, not all, of its videos are from that country: 57% of videos on 10 served pages the same day (DE 52%, US 66%, GB 41%, JP 81%), and 51% were captioned in the country's main language. It returns a median of 24 videos (8 to 27) and takes 12 to 35 seconds. On 1 of 25 local calls no video came back at all: that returns 503 with credits refunded, so retry. A local request never falls back to the global feed. Both feeds cost the same, carry no cursor, and return each video once. Every row carries `ext.region`, the country the video is registered to, so filter on it when you need only that country; local rows also carry `ext.content_language`, TikTok's own caption-language tag.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "tiktok",
@@ -769,6 +817,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches TikTok for videos under a specific hashtag. Returns matching videos with engagement metrics and author info.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "tiktok",
@@ -793,6 +843,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the top-ranked videos for a keyword query on TikTok. Rows are posts only: account search lives at `/v1/tiktok/search/users` and sound search at `/v1/tiktok/search/music`. Filter by `publish_time` (also accepted as `date_posted`, the spelling `/v1/tiktok/search` uses) and `sort_by`.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "tiktok",
@@ -804,17 +856,24 @@ export const ENDPOINTS: Endpoint[] = [
     optionalParams: [
       { name: "cursor", type: "integer", description: "Cursor to get more users. Get 'cursor' from previous response." },
       { name: "trim", type: "boolean", description: "Accepted for compatibility; the response is already the canonical shape, so this flag has no effect." },
+      { name: "include", type: "enum", enumValues: ["profile"], description: "Set to `profile` (one token only) to fill `author.bio`, `author.location` (the ISO region), `author.ext.bio_link` and `author.ext.business_category` on every row in this one call. Holds 1 credit per row (at most 30, or `limit`) and keeps only the rows filled from a fresh lookup; rows already in cache and rows that could not be filled are refunded, so the most a call can cost is 1 + rows. Adds 4 to 9 seconds on a fresh page (never more than 12) and nothing when the rows are already cached; read `data.hydration` for the rows, the credits held and kept, and the time." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 30, description: "Take the top N rows of the page (1 to 30) after the search has run. With `include=profile` it also caps the extra credits at N: `limit=5&include=profile` costs at most 6. It is not a page size: `next_cursor` still advances past the full page, so rows beyond N on this page are not returned by the next page." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 31, description: "1 credit for the page. include=profile holds 1 credit per row, at most 30 (or `limit`), and keeps only the rows filled from a fresh lookup, so a page is at most 31 credits; rows served from cache are free, unfilled rows are refunded, and a repeat within the cache window costs 0. The page is cached for 2 minutes and the per-account lookups for 15 minutes." },
     archetype: "AuthorList",
     summary: "Search TikTok users",
     description:
-      "Searches TikTok for user accounts matching a query. Returns matching profiles with follower counts and verification status.",
-    pagination: { style: "cursor", nativeParam: "cursor" },
+      "Searches TikTok for user accounts matching a query, 30 per page. Each row carries the username, display name, avatar, profile URL, verification status, whether the account is private, and the follower, following, video and like counts. The search surface publishes nothing else, so on a plain call `author.bio`, `author.location`, `author.ext.bio_link` and `author.ext.business_category` are null on every row. Send `include=profile` and every row is joined, in the same call, to the profile lookup that carries them: the bio, the ISO 3166-1 alpha-2 region at `author.location`, the link in the bio and the account category land on each row. Cost: 1 credit for the page plus 1 credit per row filled from a fresh lookup (30 rows, so 31 at most); rows already in cache are filled for free, rows that could not be filled are refunded, and a repeat of the same call within the cache window is 0. Time: a plain call is about 2 seconds; `include=profile` adds 4 to 9 seconds on a fresh page (the lookups run in parallel and the call waits for the slowest, never more than 12 seconds) and nothing when the rows are already cached. `limit=N` (1 to 30) takes the top N rows of the page and, with `include`, caps the extra credits at N. The response carries a `hydration` block itemising rows, lookups, cache hits, credits and milliseconds. The counts on a search row are the search index's own figures and can trail the profile's by a few thousand on a large account; the join never overwrites a value the row already carries. Page with cursor.",
+    pagination: { style: "cursor", nativeParam: "cursor", limitParam: "limit" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
+    hydration: [
+      { param: "include", token: "profile", sibling: "tiktok/profile", fills: ["author.bio", "author.location", "author.ext.bio_link", "author.ext.business_category"], creditsPerItem: 1, maxItems: 30, rowLimitParam: "limit", cacheSibling: true, warnings: { unavailable: "profile_unavailable", partial: "profile_partial" } },
+    ],
   },
   {
     platform: "tiktok",
@@ -831,8 +890,9 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Audience",
     summary: "Get TikTok user audience demographics",
     description:
-      "Returns audience geography for a TikTok creator: audienceLocations ranks the top countries in the creator's audience with sampled follower counts and percentage share. Age and gender are not included: platforms do not expose those publicly.",
+      "Returns audience geography for a TikTok creator: audienceLocations ranks the top countries in the creator's audience with sampled follower counts and percentage share. The ranking is built from a sample of the creator's public followers (typically a few hundred), not the full follower base, so treat the percentages as a concentration ranking rather than a census. When the creator has a public Shop marketplace card, the same response also carries audienceAges and audienceGenders (percentage share) and audienceStates (sampled US-state counts). Age and gender are absent when no marketplace card exists; the country ranking is still returned.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["tiktok"],
   },
   {
     platform: "tiktok",
@@ -855,6 +915,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a list of followers for a TikTok user. Each follower includes username, display name, avatar, and follower count.",
     pagination: { style: "cursor", nativeParam: "min_time" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "tiktok",
@@ -877,6 +939,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a list of accounts that a TikTok user is following. Each account includes username, display name, avatar, and follower count. Paginate with `min_time` from the previous response to walk the full list.",
     pagination: { style: "cursor", nativeParam: "min_time" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "tiktok",
@@ -895,6 +959,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the current live-stream state for a TikTok user: `is_live`, and when the account is or has recently been live, the room (title, cover, start time, viewer stats). An account that exists but has never streamed returns `is_live: false` with an empty room and bills 1 credit; a handle that does not exist returns 404 at 0 credits. Answers are cached for at most 60 seconds.",
     cache: { category: "analytics", ttlSeconds: 60 },
+    tags: ["tiktok"],
   },
   {
     platform: "tiktok",
@@ -916,6 +981,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the transcript of a TikTok video. Supports auto-generated captions and AI-powered transcription as fallback.",
     cache: { category: "immutable", ttlSeconds: 2592000 },
+    tags: ["tiktok"],
   },
   {
     platform: "tiktok",
@@ -934,6 +1000,14 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Extracts the text shown ON the video itself: the overlay captions creators put on screen, which the regular caption and transcript never carry. Two layers are merged: native text-sticker data (present when the creator used TikTok's built-in text tool) and AI OCR of the video's cover frame, which also catches text burned in with editors like CapCut that no data provider returns. `texts` is the deduplicated union in reading order; `native_texts` and `ocr_texts` expose each layer separately and `source` says which layers produced data. A video with no on-screen text returns an empty `texts` array (that is a real answer, not an error). Costs 5 credits; auto-refunds when the video lookup or the whole extraction fails.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tiktok"],
+    responseFields: {
+      "texts": "Deduplicated union of every on-screen text block found, native layer first, in reading order. Empty array when the video shows no overlay text.",
+      "native_texts": "Text the creator typed with TikTok's built-in text tool, straight from platform data. Null when the video carries no native text stickers.",
+      "ocr_texts": "Text the vision model read off the video's cover frame, including burned-in editor text. Null when the OCR layer was skipped or failed (see warnings).",
+      "source": "Which layers produced data: native+ocr, native, ocr, or none.",
+      "frame": "Which frame the OCR layer analysed (currently always the video's cover frame, or null when the video exposes no cover).",
+    },
   },
   {
     platform: "tiktok",
@@ -952,6 +1026,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns details about a specific TikTok sound/song including title, artist, duration, usage count, and cover image.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "tiktok",
@@ -972,6 +1048,55 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns videos that use a specific TikTok sound/song. Each video includes engagement metrics, author info, and caption.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+  },
+  {
+    platform: "tiktok",
+    resource: "hashtags/popular",
+    method: "GET",
+    params: [],
+    optionalParams: [
+      { name: "countryCode", type: "enum", enumValues: ["US", "FR", "DE", "IT", "ES", "GB", "AR", "AU", "BR", "CA", "CO", "EG", "ID", "IL", "JP", "KR", "MY", "MX", "PH", "SA", "SG", "ZA", "TW", "TH", "TR", "AE", "VN"], description: "Market to read the board for, as an ISO country code. One of the 27 markets TikTok publishes the board for. Defaults to US.", example: "DE" },
+      { name: "period", type: "enum", enumValues: ["7", "30", "90"], description: "Window in days: 7, 30 or 90. Defaults to 7. Each window is a different board, not a longer list.", example: "7" },
+      { name: "industry", type: "enum", enumValues: ["all", "education", "vehicle-and-transportation", "baby-kids-and-maternity", "beauty-and-personal-care", "tech-and-electronics", "travel", "household-products", "pets", "home-improvement", "apparel-and-accessories", "news-and-entertainment", "games", "food-and-beverage", "sports-and-outdoor", "health"], description: "Which board to read. Omit for the overall board (3 hashtags). Pass an industry slug for that industry's board (3 hashtags), or `all` for the overall board plus all 15 industry boards in one call.", example: "all" },
+    ],
+    oneOfGroups: [],
+    creditTier: "standard",
+    creditCost: 1,
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 6, maxCost: 96, description: "2 credits per hashtag returned, minimum 6. One board is 6 credits. industry=all holds 96 credits (sixteen boards of three) and settles down to the hashtags actually returned, typically 88 to 92. An empty board costs nothing." },
+    archetype: "PostList",
+    summary: "Read TikTok's own trending-hashtag board for a market and time window: the overall board plus 15 industry boards. Metered: 2 credits per hashtag returned, minimum 6",
+    description:
+      "Returns the hashtags TikTok itself ranks as trending in a market over the last 7, 30 or 90 days, from the hashtag board TikTok publishes for advertisers. Each row is one hashtag: `content.text` is the tag (no `#`), `id` is TikTok's hashtag id and `url` its TikTok page. What the board says about it is on `ext.trend`: `rank` on the board it was read from, `posts` and `views` for the window (not the tag's lifetime totals, which is why `engagement.views` is null), `industry` / `industry_id` / `industry_label` naming that board (null for the overall board), `popularity_curve` as one relative value per day (0 to 100, peak = 100), and `top_creators` with handle, name, followers and country. **Depth: TikTok shows three hashtags per board to a reader who is not logged in, and that is what this endpoint reads.** One board is therefore three rows. Pass `industry=all` to read the overall board and all 15 industry boards in one call, typically 44 to 46 unique hashtags, which is where the niche signal is (in Germany the industry boards carried #adventskalender, #kürbis and #berufsschule while the overall board was three general tags). A hashtag that ranks on more than one board appears once and is billed once: its `rank` and `industry` fields name the first board it was read from (overall first, then the industries in TikTok's order), and `ext.trend.boards` lists every board it ranks on with its rank there, so a hashtag in the top 3 overall and on an industry board shows both. **Markets:** the 27 TikTok publishes this board for. **Not available any more:** the 120-day window, a second page, the new-to-top-100 filter, rank change, and the business-services, financial-services and life-services industries; each is refused with a 400 at no charge. **Pricing is metered at 2 credits per hashtag returned, minimum 6.** One board costs 6; `industry=all` holds 96 and settles to the rows returned (about 90). A board with no rows costs nothing.",
+    singlePage: "TikTok's hashtag board is a ranked leaderboard with no second page: a logged-out reader gets the top three per board. Use industry=all to read the overall board and all 15 industry boards in one call, or change countryCode or period for a different board.",
+    cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+  },
+  {
+    platform: "tiktok",
+    resource: "videos/popular",
+    method: "GET",
+    params: [],
+    optionalParams: [
+      { name: "countryCode", type: "enum", enumValues: ["US", "JP", "VN", "TH", "ID"], description: "Market: US, JP, VN, TH or ID, the only markets TikTok publishes this board for. Defaults to US.", example: "US" },
+      { name: "period", type: "enum", enumValues: ["7", "30"], description: "Window in days: 7 or 30. Defaults to 7.", example: "7" },
+      { name: "orderBy", type: "enum", enumValues: ["views", "engagement", "six_second_views"], description: "How TikTok ranks the board: views (the default), engagement, or six_second_views.", example: "views" },
+      { name: "limit", type: "integer", minimum: 1, maximum: 20, description: "How many videos to return, 1-20, default 20." },
+    ],
+    oneOfGroups: [],
+    creditTier: "standard",
+    creditCost: 1,
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 26, maxCost: 45, description: "25 credits per board plus 1 credit per video returned. The default limit of 20 holds 45 credits and settles to the videos actually returned; an empty board costs nothing." },
+    archetype: "PostList",
+    summary: "Read TikTok's own Top Videos board for the US, Japan, Vietnam, Thailand or Indonesia. Metered: 25 credits per board plus 1 per video returned",
+    description:
+      "Returns the videos TikTok itself ranks at the top of its Top Videos board for a market over the last 7 or 30 days, sorted by views, engagement or 6-second views. Each row is a video: `id`, `url`, the caption at `content.text`, the cover and a video file URL (signed, expires within hours), the creator at `author.username` / `author.display_name` with `ext.author_id` and `ext.author_followers`, the upload time at `published_at`, and lifetime views at `engagement.views`. What the board says about it is on `ext.trend`: `rank`, `period_views` (views inside the window), `organic_views`, `engagement_rate`, `six_second_view_through_rate` and TikTok's `content_tags`. **Markets: TikTok publishes this board for US, JP, VN, TH and ID only.** Any other market, Germany included, is refused with a 400 at no charge; for those markets use `/v1/tiktok/hashtags/popular`, which covers 27. **The board carries no like, comment or share counts and no duration**, so those leaves are null rather than estimated. It includes paid and branded posts; `organic_views` is the only paid-versus-organic signal TikTok gives. A logged-out reader of TikTok's page sees the top four, and ranks 1 to 4 were checked against it; deeper ranks follow TikTok's order as served. **Pricing is metered at 25 credits per board plus 1 credit per video returned** (20 videos = 45 credits), because each read of the board has a fixed cost. An empty board costs nothing.",
+    singlePage: "TikTok's Top Videos board is a ranked leaderboard with no cursor. `limit` controls how far down it you read (up to 20); change countryCode, period or orderBy for a different board.",
+    cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "tiktok",
@@ -988,8 +1113,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Author",
     summary: "Get TikTok profile region",
     description:
-      "Returns the ISO 3166-1 alpha-2 region code for a public TikTok profile (e.g. `US` for United States, `MX` for Mexico). Useful for routing region-locked workflows and deduplicating profiles by country.",
+      "Returns the ISO 3166-1 alpha-2 region code for a public TikTok profile (e.g. `US` for United States, `MX` for Mexico), together with the account's follower, following, post and like counts, display name, avatar, bio and verified flag. Useful for routing region-locked workflows and deduplicating profiles by country. The counters are filled from a second source inside the same request, for the same one credit, so you do not need a separate profile call to get them. The region itself is the one leaf that can be absent: it comes from a single source, and if that source is unavailable the rest of the profile is still returned with `location` null.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "tiktok",
@@ -1000,17 +1127,24 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "query", type: "string", description: "Keyword or phrase to search the TikTok Ad Library." },
       { name: "advertiser_name", type: "string", description: "Advertiser name as it appears in the TikTok Ad Library.", example: "Gymshark" },
       { name: "cursor", type: "string", description: "Cursor from the previous response to fetch the next page." },
+      { name: "include", type: "enum", enumValues: ["ad"], description: "Set to `ad` (one token only) to fill the registered brand name, the landing page, the advertiser's TikTok profile link and avatar (`post.ext.ad.brand_name`, `post.ext.ad.landing_page`, `post.ext.ad.profile_web_link`, `post.author.avatar_url`), plus the objectives, countries and source where the library has them, on every ad in this one call. Holds 1 credit per ad (at most 12, or `limit`) and keeps only the ads filled from a fresh lookup; ads already in cache and ads that could not be filled are refunded, so the most a call can cost is 5 + ads. Adds 5 to 20 seconds on a fresh page (never more than 20) and nothing when the ads are already cached; read `data.hydration` for the rows, the credits held and kept, and the time." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 12, description: "Take the top N ads of the page (1 to 12) after the search has run. With `include=ad` it also caps the extra credits at N: `limit=3&include=ad` costs at most 8. It is not a page size: `next_cursor` still advances past the full page." },
     ],
     oneOfGroups: [["query", "advertiser_name"]],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "ladder" },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 17, description: "5 credits for the page. include=ad holds 1 credit per ad, at most 12 (or `limit`), and keeps only the ads filled from a fresh lookup, so a page is at most 17 credits; ads served from cache are free, unfilled ads are refunded, and a repeat within the cache window costs 0. The page is cached for 2 minutes and the per-ad lookups for 30 minutes." },
     archetype: "PostList",
     summary: "Search the TikTok Ad Library",
     description:
-      "Returns ads from the TikTok Ad Library matching a keyword or advertiser name. Each ad includes creative video, title, advertiser name, impression estimate, and first-shown date. Page with cursor.",
-    pagination: { style: "cursor", nativeParam: "cursor" },
+      "Returns ads from the TikTok Ad Library (the EU Commercial Content Library) matching a keyword or advertiser name, 12 per page. Each ad carries the creative video, the title, the advertiser name, the impression estimate at `engagement.views`, the spend band, the first-shown date and the audit status. The search row publishes no brand, landing page, advertiser account or avatar, so on a plain call `post.ext.ad.brand_name`, `post.ext.ad.landing_page`, `post.ext.ad.profile_web_link` and `post.author.avatar_url` are null on every row. Send `include=ad` and every row is joined, in the same call, to the per-ad lookup that carries them: the registered brand name, the landing page, the advertiser's TikTok profile link and avatar, and where the library has them the campaign objectives, the countries the ad ran in and the ad source. Cost: 5 credits for the page plus 1 credit per ad filled from a fresh lookup (12 ads, so 17 at most); ads already in cache are filled for free, ads that could not be filled are refunded, and a repeat within the cache window is 0. Time: a plain call is 4 to 19 seconds; `include=ad` adds 5 to 20 seconds on a fresh page (the lookups run in parallel and the call waits for the slowest, never more than 20 seconds) and nothing when the ads are already cached. `limit=N` (1 to 12) takes the top N ads and, with `include`, caps the extra credits at N. The response carries a `hydration` block itemising rows, lookups, cache hits, credits and milliseconds. Like, comment and share counts are not published by the library on either call. Page with cursor.",
+    pagination: { style: "cursor", nativeParam: "cursor", limitParam: "limit" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["tiktok", "tiktok-ads"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "ad", sibling: "tiktok/adlibrary/ad", fills: ["post.author.avatar_url", "post.ext.ad.brand_name", "post.ext.ad.landing_page", "post.ext.ad.profile_web_link", "post.ext.ad.objectives", "post.ext.ad.country_code", "post.ext.ad.source"], creditsPerItem: 1, maxItems: 12, rowLimitParam: "limit", cacheSibling: true, warnings: { unavailable: "ad_unavailable", partial: "ad_partial" } },
+    ],
   },
   {
     platform: "tiktok",
@@ -1030,6 +1164,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns one ad from the TikTok Ad Library: creative video, title, advertiser TikTok account, landing page, brand name, and first-shown date. Pass ad_id or a library.tiktok.com URL.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["tiktok", "tiktok-ads"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "tiktok",
@@ -1051,6 +1187,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns TikTok's search autocomplete suggestions for a partial query, the same terms the search box shows. Useful for keyword expansion before search or search/top.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored suggestion list.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "tiktok",
@@ -1072,6 +1210,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the public videos inside a TikTok collection. Each video includes caption, play/like/comment/share/save counts, author, and a playable URL. Page with max_cursor.",
     pagination: { style: "cursor", nativeParam: "max_cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "tiktok",
@@ -1092,6 +1232,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the playlists a TikTok creator has published on their profile, each with its playlist id, name, and the number of videos it contains under `post.ext.video_count`. Pass the playlist id to `/v1/tiktok/playlist/videos` to read the videos themselves. The video count is the account's own figure and is accurate; view totals are not exposed for a playlist, so `post.engagement` is null on every row.",
     singlePage: "Measured 29/08/2026 on three accounts: has_more is false at 1, 6 and 20 rows, and an offset past the last row returns an envelope with no playlist key at all.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "tiktok",
@@ -1115,6 +1257,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the videos inside one of a creator's profile playlists, in playlist order, ten per page. Each video carries the full set of engagement counts, the caption, the author, and a playable URL. Get the `playlist_id` from `/v1/tiktok/profile/playlists`. Page with `cursor`: the value the previous response returned must be sent back unchanged, because it is the upstream's own item index and is not always the number of rows you have already received.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "tiktok",
@@ -1136,6 +1280,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the videos a given TikTok account has liked, newest first, thirty per page. This is the account's own likes feed and it reads in one direction only: it answers what this user liked, not who liked a given video. There is no endpoint for the other direction, on this API or any other, because TikTok keeps the identity of the people who like a post private. Each row is another creator's video and carries that creator's author block, engagement counts and caption. Most accounts keep their likes list private: when they do, the response is `404 RESOURCE_NOT_FOUND` and the request is refunded. Check `author.ext` on `/v1/tiktok/profile` first if you want to know before you call. Page with `cursor`, sending back the value from the previous response unchanged.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "tiktok",
@@ -1158,6 +1304,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns public videos tagged at a TikTok place, twenty per page, with full engagement counts and author details on every row. `location_id` is TikTok's own place id, the number that appears in a place page URL. A place id TikTok does not recognise returns `404 RESOURCE_NOT_FOUND` and is refunded, which is distinct from a real place that simply has no recent posts: that returns an empty list.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "tiktok",
@@ -1177,6 +1325,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Looks up TikTok effects (the camera filters creators apply to a video) by id, up to 50 in one request for a single credit. Each row carries the effect name, its designer, the total views of videos made with it under `post.engagement.views`, and the number of such videos under `post.ext.video_count`. Match results by the returned `post.id`, never by position: repeated ids are collapsed into one row and ids TikTok does not recognise are omitted, so the response can be shorter than the list you sent. A request in which no id is recognised returns `404 RESOURCE_NOT_FOUND` and is refunded.",
     singlePage: "Batch id lookup: the caller supplies the full set of ids and the response carries no cursor, no has_more and no total.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "tiktok",
@@ -1199,6 +1349,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns public videos created with a TikTok effect, with full engagement counts and author details on every row. TikTok chooses its own page size here and it does not track the number you ask for, so send the `cursor` from the previous response back unchanged rather than adding up the rows you have received. An effect id TikTok does not recognise returns `404 RESOURCE_NOT_FOUND` and is refunded.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "tiktok",
@@ -1223,6 +1375,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches TikTok's sound catalogue by keyword and returns up to thirty matching sounds per page, each with its title, artist, duration, cover art, a preview audio URL, and the number of videos using it under `post.ext.video_count`. Where TikTok knows the track on the major music stores, `post.ext.dsp_ids` carries its Apple Music, Spotify and Amazon ids, which is what makes a sound joinable to catalogue data outside TikTok. Pass `post.ext.music_id` to `/v1/tiktok/song/videos` to see the videos using a sound.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "tiktok",
@@ -1242,6 +1396,37 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns TikTok's own record for a hashtag: its display name, its description where the platform has written one, and the two numbers that size it. `post.engagement.views` is the total views of videos under the tag and it is live, moving between calls minutes apart. `post.ext.video_count` is how many videos carry the tag. Pass either the tag name or, if you already have it, TikTok's numeric hashtag id. Use `/v1/tiktok/search/hashtag` to read the videos themselves.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tiktok"],
+    responseShape: { root: "data.post" },
+  },
+  {
+    platform: "tiktok",
+    resource: "ads/top",
+    method: "GET",
+    params: [],
+    optionalParams: [
+      { name: "country", type: "enum", enumValues: ["US", "CA", "MX", "BR", "GB", "DE", "FR", "IT", "ES", "NL", "PL", "SE", "TR", "SA", "AE", "AU", "JP", "KR", "ID", "TH", "VN", "MY", "PH", "SG"], description: "Creative Center market to read the board for. Defaults to US. This is the market the ads ran in, not the language they are in.", example: "US" },
+      { name: "period", type: "enum", enumValues: ["7", "30", "180"], description: "Lookback window in days: 7, 30 or 180. Defaults to 30. A longer window is a different board, not more rows.", example: "30" },
+      { name: "order_by", type: "enum", enumValues: ["for_you", "impression", "ctr", "play_2s_rate", "play_6s_rate", "cvr", "like"], description: "How TikTok ranks the board: for_you (TikTok's own blend, the default), ctr, impression, like, cvr, play_2s_rate or play_6s_rate.", example: "ctr" },
+      { name: "ad_format", type: "enum", enumValues: ["All ad types", "Spark ads", "Non-Spark ads"], description: "Restrict to Spark ads (ads boosted from an organic post) or Non-Spark ads. Defaults to all." },
+      { name: "ad_language", type: "enum", enumValues: ["en", "ja", "zh", "vi", "th", "pt", "id"], description: "Filter by the language of the ad copy." },
+      { name: "like_tier", type: "enum", enumValues: ["1", "2", "3", "4", "5"], description: "TikTok's engagement percentile band, 1 (top) to 5. Use it to read further down the ranking without raising limit." },
+      { name: "industry", type: "string", description: "Creative Center sub-category label, for example 'Skincare' or 'Cosmetics'. Use a sub-category, not a top-level group: the board returns nothing for the broad groups such as 'Financial Services' or 'Education'. Omit for all industries." },
+      { name: "keyword", type: "string", description: "Search the board by brand or product keyword." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 100, description: "How many ads to return, 1-100, default 20. The board is served in blocks of ten, so any limit below 10 still costs 10 credits." },
+    ],
+    oneOfGroups: [],
+    creditTier: "standard",
+    creditCost: 1,
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 10, maxCost: 100, description: "1 credit per ad returned, minimum 10 credits. A limit of 20 holds 20 credits and settles down to the number of ads that actually came back; a filter combination with no board costs nothing." },
+    archetype: "PostList",
+    summary: "Read TikTok's Creative Center Top Ads board: the best-performing ads in a market, ranked by CTR, impressions or engagement. Metered: 1 credit per ad returned, minimum 10",
+    description:
+      "Returns TikTok's own leaderboard of top-performing ads for a market and time window, with the performance signals TikTok publishes and nothing else does: `ext.ad.ctr` is the click-through rate, `ext.ad.rank` is the ad's position on the board, `ext.ad.cost_score` and `ext.ad.like_tier` are TikTok's own banded cost and engagement tiers, and `engagement.likes` is the real like count. Each row carries the ad's video at `content.media_urls` (720p, with 540p and 360p renditions on `ext.ad`), the cover image, the duration, the advertiser at `author.username`, and the campaign objective and industry at `ext.ad.objective` / `ext.ad.industry`. **This is a different surface from `/v1/tiktok/adlibrary/search`.** That endpoint reads the EU Commercial Content Library, which carries who an ad was targeted at across 33 EU/EEA countries but publishes no performance data; this one reads the global Creative Center board across 24 markets including the US, Korea, Japan and Brazil, and publishes performance but no targeting. Use this one to find creative that worked, and that one to find who an advertiser bought. **There is no publish date**: TikTok does not attach one to the board, so `published_at` is null on every row rather than filled with the time you called. `brandName` is absent on roughly half of live rows because TikTok attributes some top ads to no brand, so `author.username` is null there too. **Pricing is metered at 1 credit per ad RETURNED, with a minimum of 10** — the board is served in blocks of ten, so a smaller `limit` still costs ten.",
+    singlePage: "The Creative Center board is a ranked leaderboard with no cursor. `limit` controls how far down the ranking you read; change `period`, `country` or the filters for a different board.",
+    cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["tiktok", "tiktok-ads"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "tiktok",
@@ -1249,11 +1434,11 @@ export const ENDPOINTS: Endpoint[] = [
     method: "GET",
     params: [],
     optionalParams: [
-      { name: "handle", type: "string", example: "mrbeast" },
-      { name: "user_id", type: "string" },
-      { name: "posts", type: "integer", description: "How many recent posts to fetch + average the computed metrics over (1-100, default 25).", example: "25" },
-      { name: "cursor", type: "string", description: "Pass a prior response's posts_cursor to deepen the post window." },
-      { name: "include", type: "string", description: "CSV subset of posts,computed (default both). include=computed drops the raw posts[] to save payload." },
+      { name: "handle", type: "string", description: "TikTok username or handle, with or without a leading @. One of the identity params is required.", example: "mrbeast" },
+      { name: "user_id", type: "string", description: "Numeric TikTok user id. Use it instead of the handle when you already have the stable id, which survives a rename. One of the identity params is required." },
+      { name: "posts", type: "integer", description: "How many of the fetched recent posts to return and compute the metrics over (1-100, default 25). One call reads one page, which on TikTok is 10 videos, so a larger value returns that page and a `_warnings` note; pass posts_cursor back as cursor for the next page.", example: "25" },
+      { name: "cursor", type: "string", description: "Pass a prior response's posts_cursor to read the next page of posts. Each call is a separate 5-credit call whose metrics cover that page only." },
+      { name: "include", type: "string", description: "CSV subset of posts,computed (default both). include=computed omits the raw posts[] array from the response to save payload. The metrics are computed from the same fetched posts either way, so they do not change." },
     ],
     oneOfGroups: [["handle", "user_id"]],
     creditTier: "standard",
@@ -1262,11 +1447,13 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "TikTok profile, recent posts, and computed analytics in one call.",
     description:
-      "Fans out to the TikTok profile and recent-posts endpoints in parallel and returns the unified author, the recent-post list, and computed metrics: average engagement rate, posting cadence (with the window it was measured over), the top post, and the format mix. The profile leg is the only critical leg: if posts can't be fetched the call still returns the profile with post-dependent metrics null, and every leg's status is surfaced in legs[]. Flat 5 credits.",
+      "Fans out to the TikTok profile and recent-posts endpoints in parallel and returns the unified author, the recent-post list, and computed metrics: avg_engagement_rate, avg_engagement_rate_by_followers, posting cadence (with the window it was measured over), the top post, and the format mix. avg_engagement_rate is view-based: the mean of each post's (likes + comments + shares) / views, so only posts that carry a view count contribute, and it is null when none does. avg_engagement_rate_by_followers is the mean of likes + comments per post divided by the account's follower count, over every post that carries both, so it covers posts with no view count. One call reads one page of recent posts, which on TikTok is 10 videos, and computes the metrics over that page: `posts` can shorten the window but not lengthen it past one page, and `_warnings` says so when fewer posts came back than `posts` asked for. Pass `posts_cursor` back as `cursor` to read the next page, 5 credits a call. The profile leg is the only critical leg: if posts can't be fetched the call still returns the profile with post-dependent metrics null, and every leg's status is surfaced in legs[]. Flat 5 credits.",
     execution: "sync",
     pagination: { style: "cursor", nativeParam: "cursor" },
+    paginatable: true,
     cache: { category: "profile", ttlSeconds: 900 },
     family: "prism",
+    tags: ["tiktok", "prism"],
   },
   // --- instagram (37 endpoints) ---
   {
@@ -1286,8 +1473,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Author",
     summary: "Get Instagram user profile",
     description:
-      "Returns public profile information for an Instagram user including the exact integer follower count, following count, post count, bio, profile picture URL, and verification status. Age-restricted (18+) profiles are supported. When the account publishes a contact address in its bio, it is returned as `author.ext.public_email`; otherwise that leaf is null. Instagram's in-app tap-to-email button is not readable from any public surface, so the bio is the only source for it.",
+      "Returns public profile information for an Instagram user including the exact integer follower count, following count, bio, profile picture URL, and verification status. `author.posts_count` is exact for accounts with fewer than 12 posts; for larger accounts the web surface reports the length of its first page instead of the total, so the leaf is null on this call rather than a wrong number. For the lifetime post count of an account of any size, call `GET /v1/instagram/profile/about`, which returns it as `author.posts_count` beside the follower count for the same 1 credit. Age-restricted (18+) profiles are supported. When the account publishes a contact address in its bio, it is returned as `author.ext.public_email`; otherwise that leaf is null. Instagram's in-app tap-to-email button is not readable from any public surface, so the bio is the only source for it.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["instagram"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "instagram",
@@ -1304,8 +1493,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Author",
     summary: "Get Instagram account transparency details",
     description:
-      "Returns the data behind Instagram's \"About this account\" panel for a public account: the country the account is based in (`author.ext.country`), the month it joined (`author.ext.account_created`), and the public contact address and phone the account publishes (`author.ext.public_email`, `author.ext.public_phone`). Country is the account's own declared country, not the country you are calling from. Coverage follows what Instagram publishes: an account that shows no transparency panel returns null for those fields.",
+      "Returns the data behind Instagram's \"About this account\" panel for a public account: the country the account is based in (`author.ext.country`), the month it joined (`author.ext.account_created`), and the public contact address and phone the account publishes (`author.ext.public_email`, `author.ext.public_phone`). Country is the account's own declared country, not the country you are calling from. The same call returns the profile itself: follower and following counts, bio, avatar, verification, and the account's lifetime post count as `author.posts_count`, which `GET /v1/instagram/profile` leaves null for accounts with 12 or more posts. Coverage follows what Instagram publishes: an account that shows no transparency panel returns null for those fields.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["instagram"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "instagram",
@@ -1328,6 +1519,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a list of recent posts from an Instagram user's profile: caption, media URL, media type, timestamp, like count and comment count. Instagram is currently returning two record widths in the same page on this surface, and the narrow one carries no like count, no comment count and no author display name, so those three leaves can be null on some rows of a page and populated on others, with a different set of rows affected on each call. Every row still carries its id, URL, caption, timestamp and picture. When you need the engagement for a specific post, pass its URL to /v1/instagram/post/stats; for a whole feed with share counts merged in, use /v1/instagram/profile/posts/full. Collaborative posts (Instagram's native \"Collab\" feature) are fully resolved: `post.ext.coauthors` lists every co-author account as `{ id, username, full_name, is_verified, profile_pic_url }`. Read it whenever you list a profile: a collab post has a single producer and appears in every co-author's grid, so `post.author` is whichever account created the post and is not always the handle you queried. The complete set of accounts on a post is `post.author.username` plus every `username` in `post.ext.coauthors`. An empty array means Instagram reports the post as not a collab; on a narrow record the key is absent rather than empty, which means the question was not answered for that row, so treat absent and `[]` as different. Note: engagement.shares is null on this endpoint (the upstream carries no per-post share count); to additionally merge in per-post share counts where a second source exposes them (coverage varies by account), use /v1/instagram/profile/posts/full. With trim=true every field above is still returned, except that `post.ext.coauthors` is omitted and `post.flags.pinned` is null, because the trimmed upstream record carries neither signal. Trim does not change the two record widths described at the top: those vary per row whether or not you set it.",
     pagination: { style: "cursor", nativeParam: "next_max_id" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "instagram",
@@ -1350,6 +1543,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns detailed information about a specific Instagram post including view count on videos and reels, like count, comment count, caption, media URLs, media type, author info, and tagged users. The view count is served resiliently: Instagram removed per-post play counts from its public web pages in August 2026, so when the primary source omits the count on a video the API automatically fills engagement.views (and ext.ig_play_count) from a second source within the same request. One call, one credit, no extra endpoint needed. Co-author data is the one thing this endpoint cannot give you: the public web page behind it reports an empty co-author list on every post, including genuine collaborative ones, so `post.ext.coauthors` is deliberately omitted here rather than returned as a misleading empty array. For the co-author list of a single post use /v1/instagram/post/stats, and for a whole feed use /v1/instagram/profile/posts or /v1/instagram/profile/reels.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["instagram"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "instagram",
@@ -1373,6 +1568,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a list of comments on an Instagram post, ranked by the platform's own popularity order by default (`sort=top`) so the most-liked comments come first, or newest-first with `sort=recent`. Each comment includes the author, comment text, real like count, reply count, and creation timestamp. Page through with `cursor`. Note: comment.author.display_name is usually null, because the Instagram surface that serves this endpoint withholds commenter display names. Join on comment.author.username.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "instagram",
@@ -1392,13 +1589,15 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 15 },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 15, description: "5 credits for a standard lookup, 15 with `deep_scan=true`, which keeps paging the thread when the comment is not in the first pages. Reach for deep_scan only after a standard lookup comes back not-found" },
     archetype: "Comment",
     summary: "Look up one Instagram comment by URL or id",
     description:
       "Resolves a single Instagram comment to a live comment object (current like count, reply count, author, timestamp) without you paginating the comment section. Pass `comment_url` (an `https://www.instagram.com/p/{shortcode}/c/{commentId}/` permalink: reply permalinks `.../c/{parent}/r/{reply}/` are best-effort) OR `post_url` + `comment_id`. Instead of a comment id you can search the comment section: `author_username` or `text_contains` return up to `max` matches. The response includes `lookup.post_comment_count` (the post's true total, so you can reason about scan coverage) and a `lookup.position_hint`: pass it back on a later lookup to make the re-check cheap. Instagram does not expose pinned status or full reply threads to any provider, so `flags.pinned` stays null and deep reply lookups can return `reply_not_resolvable`. Flat 5 credits (15 with `deep_scan=true`); a not-found returns 404 and is fully refunded.",
     cache: { category: "comments", ttlSeconds: 300 },
     family: "prism",
+    tags: ["instagram"],
+    responseShape: { root: "data.comment" },
   },
   {
     platform: "instagram",
@@ -1415,8 +1614,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Author",
     summary: "Get Instagram basic profile",
     description:
-      "Returns basic public profile info for an Instagram user by user ID including username, full name, bio, avatar, verification status, and the follower and following counts. Note: author.posts_count is not available on this endpoint, because the lightweight by-id lookup does not carry a post count. Call /v1/instagram/profile?handle= for the post count (same 1 credit).",
+      "Returns basic public profile info for an Instagram user by user ID including username, full name, bio, avatar, verification status, and the follower and following counts. Note: author.posts_count is not available on this endpoint, because the lightweight by-id lookup does not carry a post count. /v1/instagram/profile/about?handle= carries the lifetime post count for accounts of any size (same 1 credit).",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["instagram"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "instagram",
@@ -1439,6 +1640,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a list of reels posted by an Instagram user. Each reel includes view count, like count, comment count, and thumbnail. Collaborative reels (Instagram's native \"Collab\" feature) carry the full co-author list under `post.ext.coauthors` as `{ id, username, full_name, is_verified, profile_pic_url }`; `post.author` stays the producing account, which on a collab is not always the handle you queried. An empty array means Instagram reports the reel as not a collab; on a narrow record the key is absent rather than empty, which means the question was not answered for that row, so treat absent and `[]` as different. Note: engagement.shares is null on this endpoint (the upstream carries no per-post share count); to additionally merge in per-reel share counts where a second source exposes them (coverage varies by account), use /v1/instagram/profile/reels/full. With trim=true you get a lighter record: the engagement, the author, the caption, the timestamp and the reel URL are all still returned, but `post.content.media_urls` is null because the trimmed record carries no video file, `post.content.duration_seconds` is null, `post.ext.coauthors` is omitted and `post.flags.pinned` is null. The cover image is returned as `post.content.thumbnail_url` either way. Leave trim unset when you need the video URL or the duration. Instagram is currently serving two record shapes on this endpoint and one of them omits the caption, so `post.content.text` can be null on a page where the reel plainly has one; re-request to get a page from the fuller shape, or read the caption from /v1/instagram/post.",
     pagination: { style: "cursor", nativeParam: "max_id" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "instagram",
@@ -1459,6 +1662,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a list of story highlight collections for an Instagram user including highlight titles, cover images, and item counts.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "instagram",
@@ -1478,6 +1683,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the items within a specific Instagram story highlight including media URLs, thumbnails, durations, and capture timestamps. Highlights are archived story frames, so they carry no public caption and no public like, comment, or view count. Instagram shows story engagement only to the account owner, and it is never fabricated here.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "instagram",
@@ -1501,13 +1708,15 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "instagram",
     resource: "media/transcript",
     method: "GET",
     params: [
-      { name: "url", required: true, description: "Full URL of the Instagram video or reel", example: "https://www.instagram.com/reel/DHsD6HGqJhp/" },
+      { name: "url", required: true, description: "Full URL of the Instagram video or reel (a `/reel/`, `/p/` or `/tv/` link to a video post). Photo posts have no audio to transcribe.", example: "https://www.instagram.com/reel/DHsD6HGqJhp/" },
     ],
     optionalParams: [],
     oneOfGroups: [],
@@ -1517,8 +1726,9 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Transcript",
     summary: "Get Instagram media transcript",
     description:
-      "Returns the AI-generated transcript of an Instagram video or reel. Supports auto-generated and AI-powered transcription.",
+      "Returns an AI-generated transcript of the spoken words in an Instagram video or reel. Instagram has no caption track to read, so the audio itself is transcribed: a video with music, sound effects or on-screen text but no speech has nothing to transcribe. Videos up to 2 minutes (120 seconds) are supported. Every outcome below is deterministic for a given URL, so retrying returns the same answer, and none of them costs credits. A video with no speech returns 404 RESOURCE_NOT_FOUND with `error.details.reason: no_speech` (the video exists). A photo post, a carousel of photos, or a URL that no longer resolves returns 404 with `reason: no_video_or_gone`, because Instagram answers those identically. A video longer than 2 minutes returns 400 INVALID_REQUEST with a message giving its length.",
     cache: { category: "immutable", ttlSeconds: 2592000 },
+    tags: ["instagram"],
   },
   {
     platform: "instagram",
@@ -1537,6 +1747,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns embeddable HTML snippet for an Instagram user profile that can be embedded on external websites.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["instagram"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "instagram",
@@ -1558,6 +1770,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns reels that use a specific audio track on Instagram. Each reel includes engagement metrics and author info. Forward the returned `cursor` to request the next page.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "instagram",
@@ -1581,6 +1795,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns recent public Instagram posts for a hashtag from Instagram's native hashtag feed. Each post includes shortcode, URL, caption, media URLs, engagement counts, and the author. Pass `type` to choose the ranking (`top`, `recent`, or `clips` for reels only). Only `type=recent` paginates: forward its `next_cursor` together with `type=recent` to page deeper. `top` and `clips` are one ranked page each, so they return `has_more: false` and no cursor; to cover more ground with those rankings, query more hashtags. A hashtag feed mixes photos and reels, so engagement.views is a number on the video rows and null on the photo rows. Pass `type=clips` for a reels-only page where every row carries a view count. Note: post.author.display_name is not available on this endpoint, so join on post.author.username, or pass it to /v1/instagram/profile?handle= for the name. Note: engagement.shares and engagement.saves are null on this endpoint (neither hashtag upstream carries a per-post share or save count); for a per-post share count pass a result URL to /v1/instagram/post/stats. Saves are platform-private. Instagram exposes no numeric save metric on any surface, and it is never fabricated.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "instagram",
@@ -1603,6 +1819,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "cursor", nativeParam: "cursor" },
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "instagram",
@@ -1617,9 +1835,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "PostList",
     summary: "Get trending Instagram reels",
     description:
-      "Fetches trending reels from Instagram's public reels page. Instagram returns a small batch per call and results can overlap, so call repeatedly to discover more: duplicates are expected. Each item includes shortcode, URL, caption, media URLs, like and comment counts, and user info. Note: engagement.views and content.duration_seconds are null on this endpoint. Instagram sends the play-count and duration keys on the trending surface with no value in them (measured null on 31 of 31 items), and no other source serves this feed, so a view count is not available here: pass a result URL to /v1/instagram/post for a per-reel view count, or use /v1/instagram/search/reels, which is sourced from a surface that still carries play counts.",
+      "Fetches trending reels from Instagram's public reels page. Instagram returns a small batch per call and results can overlap, so call repeatedly to discover more: duplicates are expected. Each item includes shortcode, URL, caption, media URLs, like and comment counts, and user info. There is no region or country option: Instagram assembles this feed for the account viewing it, not for a place, so the mix is global (measured 13/09/2026: a region hint changed the batch no more than a repeat call did). For region-scoped Instagram posts, find places with /v1/instagram/search/location and page their posts with /v1/instagram/location/posts. Note: engagement.views and content.duration_seconds are null on this endpoint. Instagram sends the play-count and duration keys on the trending surface with no value in them (measured null on 31 of 31 items), and no other source serves this feed, so a view count is not available here: pass a result URL to /v1/instagram/post for a per-reel view count, or use /v1/instagram/search/reels, which is sourced from a surface that still carries play counts.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "instagram",
@@ -1630,17 +1850,20 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "handle", type: "string", description: "Instagram username without the @ symbol.", example: "mrbeast" },
       { name: "user_id", type: "string", description: "Instagram numeric user ID. Use this for faster responses." },
       { name: "cursor", type: "string", description: "Pagination cursor. Use the `next_cursor` from the previous response to fetch the next page." },
+      { name: "coverage", type: "enum", enumValues: ["full"], description: "Send `full` to walk a merged list: accounts are added from several reads of the list, never repeated across pages, until the rows reach the profile's count in `data.total`. Requires `handle`. 10 credits a page instead of 5. A page carries about 50 accounts, so a full list costs roughly the account count divided by 50, times 10 credits: on 13/09/2026 a following list of 2,652 took 54 pages (540 credits) and a follower list of 2,360 took 59 (590), because the later pages of a follower walk add fewer new accounts. A page usually takes about 8 seconds and can take up to about 45, and a `503` is retried with the same cursor. A cursor from this mode only continues this mode." },
     ],
     oneOfGroups: [["handle", "user_id"]],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "ladder" },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 10, description: "5 credits a page. With `coverage=full`, 10 credits a page. A page that fails is refunded." },
     archetype: "AuthorList",
     summary: "List Instagram followers",
     description:
-      "Returns a paginated list of the accounts that follow an Instagram user. Each follower includes username, display name, avatar URL, verification status, and profile URL. Pass either `handle` or `user_id`, and page through with `cursor`.",
+      "Returns a paginated list of the accounts that follow an Instagram user. Each follower includes username, display name, avatar URL, verification status, and profile URL. Pass either `handle` or `user_id`, and page through with `cursor`. Instagram serves each walk of a follow list as a partial sample, so a plain walk can end before the profile's count, at about two thirds of it on some accounts. `data.total` carries the profile's own count on every page, so compare the rows you collected against it. Send `coverage=full` with `handle` to walk a merged list instead: each page adds accounts not already returned earlier in the walk, drawn from several reads of the list, until the rows reach the count or no read has more. A full-coverage page costs 10 credits instead of 5 and takes longer, and its cursor only continues a `coverage=full` walk.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "instagram",
@@ -1651,17 +1874,20 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "handle", type: "string", description: "Instagram username without the @ symbol.", example: "mrbeast" },
       { name: "user_id", type: "string", description: "Instagram numeric user ID. Use this for faster responses." },
       { name: "cursor", type: "string", description: "Pagination cursor. Use the `next_cursor` from the previous response to fetch the next page." },
+      { name: "coverage", type: "enum", enumValues: ["full"], description: "Send `full` to walk a merged list: accounts are added from several reads of the list, never repeated across pages, until the rows reach the profile's count in `data.total`. Requires `handle`. 10 credits a page instead of 5. A page carries about 50 accounts, so a full list costs roughly the account count divided by 50, times 10 credits: on 13/09/2026 a following list of 2,652 took 54 pages (540 credits) and a follower list of 2,360 took 59 (590), because the later pages of a follower walk add fewer new accounts. A page usually takes about 8 seconds and can take up to about 45, and a `503` is retried with the same cursor. A cursor from this mode only continues this mode." },
     ],
     oneOfGroups: [["handle", "user_id"]],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "ladder" },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 10, description: "5 credits a page. With `coverage=full`, 10 credits a page. A page that fails is refunded." },
     archetype: "AuthorList",
     summary: "List Instagram following",
     description:
-      "Returns a paginated list of the accounts an Instagram user follows. Each account includes username, display name, avatar URL, verification status, and profile URL. Pass either `handle` or `user_id`, and page through with `cursor`.",
+      "Returns a paginated list of the accounts an Instagram user follows. Each account includes username, display name, avatar URL, verification status, and profile URL. Pass either `handle` or `user_id`, and page through with `cursor`. Instagram serves each walk of a follow list as a partial sample, so a plain walk can end before the profile's following count, at about two thirds of it on some accounts. `data.total` carries the profile's own count on every page, so compare the rows you collected against it. Send `coverage=full` with `handle` to walk a merged list instead: each page adds accounts not already returned earlier in the walk, drawn from several reads of the list, until the rows reach the count or no read has more. A full-coverage page costs 10 credits instead of 5 and takes longer, and its cursor only continues a `coverage=full` walk.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "instagram",
@@ -1671,17 +1897,24 @@ export const ENDPOINTS: Endpoint[] = [
     optionalParams: [
       { name: "handle", type: "string", description: "Instagram username without the @ symbol.", example: "mrbeast" },
       { name: "user_id", type: "string", description: "Instagram numeric user ID. Use this for faster responses." },
+      { name: "include", type: "enum", enumValues: ["profile"], description: "Set to `profile` (one token only) to fill `author.followers`, `author.following` and `author.bio` on every row in this one call, plus `author.posts_count` where the lookup has an exact total. The hydrated list is its top 20 accounts unless you pass `limit` (1 to 80). Holds 1 credit per row and keeps only the rows filled from a fresh lookup; rows already in cache and rows that could not be filled are refunded, so the most a call can cost is 5 + rows (25 by default, 85 with `limit=80`) and the usual bill is lower. Adds 3 to 6 seconds for 20 rows (never more than 12) and about four times that for 80, and nothing when the accounts are already cached; read `data.hydration` for the rows, the credits held and kept, and the time." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 80, description: "Take the top N accounts of the list (1 to 80). With `include=profile` the list defaults to its top 20 (at most 25 credits) and `limit` caps both the rows and the extra credits: `limit=80&include=profile` buys the full roster for at most 85 credits. Without `include=profile` the full list is returned unless you cap it." },
     ],
     oneOfGroups: [["handle", "user_id"]],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "ladder" },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 85, description: "5 credits for the list. include=profile holds 1 credit per row and keeps only the rows filled from a fresh lookup; the hydrated list is its top 20 accounts by default (at most 25 credits) and `limit=80` buys the full roster (at most 85). Rows served from cache are free, unfilled rows are refunded, and a repeat within the cache window costs 0. The list and the per-account lookups are cached for 15 minutes." },
     archetype: "AuthorList",
     summary: "List similar Instagram accounts",
     description:
-      "Returns a list of Instagram accounts similar to a given user: the related accounts Instagram surfaces as suggestions. Each account includes username, avatar URL, verification status, and profile URL. Pass either `handle` or `user_id`. Passing `user_id` is faster because no username lookup is needed. Note: author.display_name is not available here, because the Instagram surface behind this endpoint withholds creator display names. Pass author.username to /v1/instagram/profile?handle= for the name.",
+      "Returns a list of Instagram accounts similar to a given user: the related accounts Instagram surfaces as suggestions. Each account includes username, display name, avatar URL, verification status, and profile URL. Pass either `handle` or `user_id`. Passing `user_id` is faster because no username lookup is needed. This is a suggestion list, so on a plain call the per-account metrics are null on every row: author.followers, author.following, author.posts_count and author.bio. Send `include=profile` and every row is joined, in the same call, to the profile lookup that carries them: exact follower and following counts plus the bio land on each row, and `author.posts_count` where the lookup has an exact total (accounts with fewer than 12 posts on the web source). Cost: 5 credits for the list plus 1 credit per row filled from a fresh lookup; rows already in cache are free, unfilled rows are refunded, and a repeat within the cache window is 0. With `include=profile` the list is its top 20 accounts unless you pass `limit` (1 to 80), so the default hydrated call is at most 25 credits (the same as `limit=20&include=profile`) and `limit=80&include=profile`, the full roster, is at most 85. Time: a plain call is 2 to 3 seconds; with `include=profile` allow 3 to 6 seconds more for 20 rows (the lookups run in parallel and the call waits for the slowest, never more than 12 seconds) and about four times that for all 80, which run as four waves of 24. The response carries a `hydration` block itemising rows, lookups, cache hits, credits and milliseconds. author.likes_count stays null: Instagram publishes no account-level like total. The list is a single fixed window: it is not paginated and returns no cursor.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
+    hydration: [
+      { param: "include", token: "profile", sibling: "instagram/profile", fills: ["author.followers", "author.following", "author.posts_count", "author.bio", "author.private"], creditsPerItem: 1, maxItems: 80, defaultRowLimit: 20, rowLimitParam: "limit", cacheSibling: true, warnings: { unavailable: "profile_unavailable", partial: "profile_partial" } },
+    ],
   },
   {
     platform: "instagram",
@@ -1703,6 +1936,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a sample of the accounts that liked an Instagram post. Each liker includes username, avatar URL, verification status, and profile URL, alongside the post's total like count in `total`. Instagram exposes only a ranked sample of likers (roughly the first 100): the endpoint does not paginate, and `total` reflects the full like count rather than the number of retrievable likers. Note: author.display_name is not available on this endpoint, because the Instagram surface behind it withholds creator display names. Join on author.username, or pass it to /v1/instagram/profile?handle= for the name.",
     singlePage: "Fixed ranked sample: Instagram exposes only ~100 likers per post; upstream ignores pagination input.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "instagram",
@@ -1713,16 +1948,22 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     optionalParams: [
       { name: "safe_url", type: "boolean", description: "When true, returns URL-safe media links suitable for embedding." },
+      { name: "include", type: "enum", enumValues: ["saves"], description: "Set to `saves` (one token only) to add `post.engagement.saves` (the save count) and `post.ext.repost_count` (the two-arrows repost count) to this call. 4 extra credits, refunded if they could not be read; a repeat within the cache window is 0. Adds 3 to 6 seconds; read `data.hydration` for the credits held and kept and the time." },
     ],
     oneOfGroups: [],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "ladder" },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 9, description: "5 credits for the post. include=saves holds 4 more and keeps them when the save and repost counts come back, refunding them when the third source cannot read the post, so a hydrated call is at most 9 credits and a plain call stays at 5. Post lookups are cached for 10 minutes." },
     archetype: "Post",
     summary: "Get Instagram post stats including the share count",
     description:
-      "Returns full engagement stats for a single Instagram post or reel: likes, comments, the view (play) count, and the share count (`engagement.shares`), which is the number shown next to the paper-plane Share icon in the app. The share count is a strong authenticity signal: unlike likes and comments, shares are hard to inflate, so it helps separate genuine reach from bought engagement. The standard /v1/instagram/post endpoint cannot return the share count. Metric availability depends on the media type: likes and comments populate on every post, but Instagram exposes a view (play) count and a share count only on video media (reels, videos, and carousels containing a video). On photo posts and photo-only carousels, `engagement.views` and `engagement.shares` are `null`, and because `computed.estimated_reach` and `computed.engagement_rate` derive from views, they are `null` there too. `engagement.saves` stays null on every post because Instagram does not expose a numeric save count. Use this endpoint for a single post; to get the share count for every reel or post across a whole feed in one call, use /v1/instagram/profile/reels/full or /v1/instagram/profile/posts/full. Note: Instagram's newer two-arrows Repost (\"regram\") counter shown in the mobile app is a separate metric that Instagram does not include in its post data, so no API can return it. This endpoint also returns the post's collaborative-post co-authors under `post.ext.coauthors` (`{ id, username, full_name, is_verified, profile_pic_url }` per account, empty array when the post is not a collab): the standard /v1/instagram/post endpoint cannot, because its web source reports every post as having no co-authors. Pass the post `url` (a /p/, /reel/, or /tv/ link; story URLs are not accepted, list a user's active stories with /v1/instagram/stories instead).",
+      "Returns full engagement stats for a single Instagram post or reel: likes, comments, the view (play) count, and the share count (`engagement.shares`), which is the number shown next to the paper-plane Share icon in the app. The share count is a strong authenticity signal: unlike likes and comments, shares are hard to inflate, so it helps separate genuine reach from bought engagement. The standard /v1/instagram/post endpoint cannot return the share count. Metric availability depends on the media type: likes and comments populate on every post, but Instagram exposes a view (play) count and a share count only on video media (reels, videos, and carousels containing a video). On photo posts and photo-only carousels, `engagement.views` and `engagement.shares` are `null`, and because `computed.estimated_reach` and `computed.engagement_rate` derive from views, they are `null` there too. `engagement.saves` is null on a plain call, because the surfaces behind it do not publish a save count. Send `include=saves` and the same call also returns the save count at `engagement.saves` and the repost count at `post.ext.repost_count` from a third source, for 4 extra credits (refunded when that source cannot read the post; adds 3 to 6 seconds). Use this endpoint for a single post; to get the share count for every reel or post across a whole feed in one call, use /v1/instagram/profile/reels/full or /v1/instagram/profile/posts/full. The two-arrows Repost (\"regram\") counter shown in the mobile app is the `post.ext.repost_count` that `include=saves` returns; without the flag it is not part of the response. This endpoint also returns the post's collaborative-post co-authors under `post.ext.coauthors` (`{ id, username, full_name, is_verified, profile_pic_url }` per account, empty array when the post is not a collab): the standard /v1/instagram/post endpoint cannot, because its web source reports every post as having no co-authors. Pass the post `url` (a /p/, /reel/, or /tv/ link; story URLs are not accepted, list a user's active stories with /v1/instagram/stories instead).",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["instagram"],
+    responseShape: { root: "data.post" },
+    hydration: [
+      { param: "include", token: "saves", sibling: "instagram/post/stats", fills: ["post.engagement.saves", "post.ext.repost_count"], creditsPerItem: 4, maxItems: 1, warnings: { unavailable: "saves_unavailable", partial: "saves_partial" } },
+    ],
   },
   {
     platform: "instagram",
@@ -1745,6 +1986,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a paginated list of the posts that tag an Instagram user. Each post includes shortcode, URL, caption, media URLs, engagement counts, and the author. Pass either `handle` or `user_id`, and page through with `cursor`. Note: post.author.display_name is not available on this endpoint, because the Instagram surface behind it withholds creator display names. Join on post.author.username, or pass it to /v1/instagram/profile?handle= for the name.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "instagram",
@@ -1754,6 +1997,7 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "location_id", required: true, description: "Instagram numeric location ID.", example: "331004901" },
     ],
     optionalParams: [
+      { name: "cursor", type: "string", description: "Pagination cursor. Use the `next_cursor` from the previous response to fetch the next, older page." },
       { name: "safe_url", type: "boolean", description: "When true, returns URL-safe media links suitable for embedding." },
     ],
     oneOfGroups: [],
@@ -1763,9 +2007,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "PostList",
     summary: "List recent posts at an Instagram location",
     description:
-      "Returns recent posts tagged at an Instagram location, as a single page of roughly 60 posts. Each post includes shortcode, URL, caption, media URLs, engagement counts, and the author. Pass the `location_id`. This endpoint does not paginate: to cover more ground, query more location IDs. A location grid mixes photos and reels, so engagement.views is a number on the video rows and null on the photo rows. Note: post.author.display_name is not available on this endpoint, because the Instagram surface behind it withholds creator display names. Join on post.author.username, or pass it to /v1/instagram/profile?handle= for the name.",
-    singlePage: "Instagram serves this location grid as one page of roughly 60 recent posts; the upstream exposes no working way to page deeper. To cover more ground, query more location IDs rather than more pages.",
+      "Returns the posts tagged at an Instagram location, newest first, about 60 per page. Each post includes shortcode, URL, caption, media URLs, engagement counts, and the author. Pass the `location_id` (get one from /v1/instagram/search/location), then page back in time with `cursor` until `has_more` is false. A busy place fills a page in about a day and a quiet one covers months or years, and the grid goes back to the location's oldest posts. Instagram orders the grid by when each post was created, so a scheduled post that went live later sits among older posts while its published_at shows the real publish time (about 1 post in 75, up to 13 days apart, measured 13/09/2026). To collect a time window, keep paging until a whole page is older than the window's start and filter on published_at; do not stop at the first older post. Each page is a separate call at the listed price. A location grid mixes photos and reels, so engagement.views is a number on the video rows and null on the photo rows. This is the region-scoped Instagram route: /v1/instagram/reels/trending and /v1/instagram/music/trending take no region, because Instagram ties both to the account viewing them. Note: post.author.display_name is not available on this endpoint, because the Instagram surface behind it withholds creator display names. Join on post.author.username, or pass it to /v1/instagram/profile?handle= for the name.",
+    pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "instagram",
@@ -1784,6 +2030,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns computed engagement statistics for an Instagram account based on its recent posts: an overall engagement rate, follower count, total likes and comments across the sampled posts, and a per-post breakdown with likes, comments, post time, and likes/comments-per-hour velocity. Pass the account `handle`.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["instagram"],
   },
   {
     platform: "instagram",
@@ -1803,6 +2050,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches Instagram locations by keyword. Returns matching places, each with its location object (id, name, coordinates) plus a display title and subtitle. Use a returned location id with the Instagram location posts endpoint to fetch recent posts tagged there.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "instagram",
@@ -1821,6 +2070,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns mixed Instagram search matches for a query: accounts, hashtags, and places in one payload, the same mix Instagram's own search box shows.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["instagram"],
   },
   {
     platform: "instagram",
@@ -1831,17 +2081,24 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     optionalParams: [
       { name: "cursor", type: "string", description: "Cursor from the previous response to fetch the next page." },
+      { name: "include", type: "enum", enumValues: ["engagement"], description: "Set to `engagement` (one token only) to fill `post.engagement.likes`, `.comments`, `.shares`, `.views`, `post.published_at` and `post.content.duration_seconds` on every row in this one call. Holds 1 credit per row (at most 12, or `limit`) and keeps only the rows filled from a fresh lookup; rows already in cache and rows that could not be filled are refunded, so the most a call can cost is 1 + rows and the usual bill is lower. Adds 2 to 9 seconds on a fresh page (never more than 12) and nothing when the rows are already cached; read `data.hydration` for the rows, the credits held and kept, and the time." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 12, description: "Take the top N rows of the page (1 to 12) after the search has run. With `include=engagement` it also caps the extra credits at N: `limit=5&include=engagement` costs at most 6. It is not a page size: `next_cursor` still advances past the full page, so rows beyond N on this page are not returned by the next page." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 13, description: "1 credit for the page. include=engagement holds 1 credit per row, at most 12 (or `limit`), and keeps only the rows filled from a fresh lookup, so a full page is at most 13 credits; rows served from cache are free, unfilled rows are refunded, and a repeat of the same call within the cache window costs 0. Search pages are cached for 2 minutes and the per-post lookups for 10 minutes." },
     archetype: "PostList",
     summary: "Search popular Instagram posts",
     description:
-      "Returns popular Instagram posts matching a keyword. Each post includes caption, play count, permalink, thumbnail, and the owner's username. Page with cursor.",
-    pagination: { style: "cursor", nativeParam: "cursor" },
+      "Returns popular Instagram posts matching a keyword. Each post includes caption, play count, permalink, thumbnail, and the owner's username. The popular surface itself does not publish like or comment counts, the post date or the duration, so on a plain call `post.engagement.likes`, `.comments`, `.shares`, `post.published_at` and `post.content.duration_seconds` are null. Send `include=engagement` and every row is joined, in the same call, to the per-post lookup that carries them: likes, comments, shares (the paper-plane send count), views, the exact publish time and the duration land on each row. Cost: 1 credit for the page plus 1 credit per row that was filled from a fresh lookup (12 rows max, so 13 credits at most); rows already in cache are filled for free, rows that could not be filled are refunded, and a repeat of the same call within the cache window is 0 credits. Time: a plain call is 2 to 3 seconds; `include=engagement` adds 2 to 9 seconds on a fresh page (the twelve lookups run in parallel and the call waits for the slowest, never more than 12 seconds) and nothing when the rows are already cached. `limit=N` caps the rows and the credits together. The response carries a `hydration` block itemising rows, lookups, cache hits, credits and milliseconds. Accounts that hide their like count keep `likes` null. `post.engagement.saves` is not available on this surface and stays null either way. Page with cursor.",
+    pagination: { style: "cursor", nativeParam: "cursor", limitParam: "limit" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "engagement", sibling: "instagram/post/stats", fills: ["post.engagement.likes", "post.engagement.comments", "post.engagement.shares", "post.engagement.views", "post.ext.ig_play_count", "post.published_at", "post.content.duration_seconds"], creditsPerItem: 1, maxItems: 12, rowLimitParam: "limit", cacheSibling: true, warnings: { unavailable: "engagement_unavailable", partial: "engagement_partial" } },
+    ],
   },
   {
     platform: "instagram",
@@ -1864,6 +2121,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns replies under one Instagram comment. Each reply includes text, like count, nested reply count, author, and timestamp. Pass the post URL and the parent comment_id. Page with cursor.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "instagram",
@@ -1883,6 +2142,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns suggested available Instagram usernames derived from a keyword: useful for choosing a new handle. Pass a `query` keyword to seed the suggestions.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "instagram",
@@ -1904,6 +2165,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches Instagram's audio (music) library by keyword. Returns matching tracks, each with artist and title, audio and cover-artwork URLs, duration, and usage metadata. Page through with `cursor`.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 21600 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "instagram",
@@ -1925,6 +2188,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the active stories currently in a user's story tray. Each story includes its id, media URLs (image or video), thumbnail, duration, capture time, and the author. Pass either `handle` or `user_id`. Passing `user_id` is faster because no username lookup is needed. A user with no active stories returns an empty list, not an error. Stories carry no public caption and no public like, comment, or view count: Instagram shows story engagement only to the account owner, and it is never fabricated here.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "instagram",
@@ -1945,6 +2210,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the downloadable media for one specific story: the full-resolution image or video URLs and the story's metadata. Pass the `user_id` of the story's author and the `story_id` of the individual story (get story ids from the Instagram stories endpoint).",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["instagram"],
   },
   {
     platform: "instagram",
@@ -1959,9 +2225,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "SearchResult",
     summary: "List trending Instagram music",
     description:
-      "Returns the audio tracks currently trending on Instagram. Each track includes its title, artist, audio and cover-artwork URLs, and usage metadata: useful for spotting sounds to ride for reach. Takes no parameters.",
+      "Returns a chart of licensed audio tracks trending on Instagram. Each track includes its title, artist, audio and cover-artwork URLs, and usage metadata: useful for spotting sounds to ride for reach. Takes no parameters, and there is no region or country option: Instagram builds this chart for the account viewing it, so the chart reflects that account's market and cannot be selected. When Instagram answers with its royalty-free sound library instead of a chart, the call returns 503 and your credits are refunded; retry after a minute. For region-scoped Instagram data, use /v1/instagram/search/location and /v1/instagram/location/posts.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["instagram"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "instagram",
@@ -1969,10 +2237,10 @@ export const ENDPOINTS: Endpoint[] = [
     method: "GET",
     params: [],
     optionalParams: [
-      { name: "handle", type: "string", example: "mrbeast" },
-      { name: "posts", type: "integer", description: "How many recent posts to fetch + average the computed metrics over (1-100, default 25).", example: "25" },
-      { name: "cursor", type: "string", description: "Pass a prior response's posts_cursor to deepen the post window." },
-      { name: "include", type: "string", description: "CSV subset of posts,computed (default both). include=computed drops the raw posts[] to save payload." },
+      { name: "handle", type: "string", description: "Instagram username or handle, with or without a leading @. One of the identity params is required.", example: "mrbeast" },
+      { name: "posts", type: "integer", description: "How many of the fetched recent posts to return and compute the metrics over (1-100, default 25). One call reads one page, which on Instagram is 12 posts, so a larger value returns that page and a `_warnings` note; pass posts_cursor back as cursor for the next page.", example: "25" },
+      { name: "cursor", type: "string", description: "Pass a prior response's posts_cursor to read the next page of posts. Each call is a separate 5-credit call whose metrics cover that page only." },
+      { name: "include", type: "string", description: "CSV subset of posts,computed (default both). include=computed omits the raw posts[] array from the response to save payload. The metrics are computed from the same fetched posts either way, so they do not change." },
     ],
     oneOfGroups: [["handle"]],
     creditTier: "standard",
@@ -1981,11 +2249,13 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "Instagram profile, recent posts, and computed analytics in one call.",
     description:
-      "Fans out to the Instagram profile and recent-posts endpoints in parallel and returns the unified author, the recent-post list, and computed metrics: average engagement rate, posting cadence (with the window it was measured over), the top post, and the format mix. The profile leg is the only critical leg: if posts can't be fetched the call still returns the profile with post-dependent metrics null, and every leg's status is surfaced in legs[]. Flat 5 credits.",
+      "Fans out to the Instagram profile and recent-posts endpoints in parallel and returns the unified author, the recent-post list, and computed metrics: avg_engagement_rate, avg_engagement_rate_by_followers, posting cadence (with the window it was measured over), the top post, and the format mix. avg_engagement_rate is view-based: the mean of each post's (likes + comments + shares) / views, so only posts that carry a view count contribute, and it is null when none does. avg_engagement_rate_by_followers is the mean of likes + comments per post divided by the account's follower count, over every post that carries both, so it covers posts with no view count. One call reads one page of recent posts, which on Instagram is 12 posts, and computes the metrics over that page: `posts` can shorten the window but not lengthen it past one page, and `_warnings` says so when fewer posts came back than `posts` asked for. Pass `posts_cursor` back as `cursor` to read the next page, 5 credits a call. The profile leg is the only critical leg: if posts can't be fetched the call still returns the profile with post-dependent metrics null, and every leg's status is surfaced in legs[]. Flat 5 credits. Photo and carousel rows have no view count, because Instagram does not publish one on stills, and neither does a video whose owner hides like and view counts. On a mostly-photo grid avg_engagement_rate is therefore null and `_warnings` says why: read avg_engagement_rate_by_followers, which uses the same formula as `computed.engagement_rate` on `/v1/instagram/profile`. Share counts are on `/v1/instagram/profile/posts/full` and `/v1/instagram/post/stats`, not this call.",
     execution: "sync",
     pagination: { style: "cursor", nativeParam: "cursor" },
+    paginatable: true,
     cache: { category: "profile", ttlSeconds: 900 },
     family: "prism",
+    tags: ["instagram", "prism"],
   },
   {
     platform: "instagram",
@@ -2001,16 +2271,18 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [["handle", "user_id"]],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 25, pageSize: 12 },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 25, pageSize: 12, description: "5 credits per upstream page of about 12 reels. With no `limit` that is one page and a flat 5 credits. With `limit` set the composite walks `ceil(limit / 12)` pages - 3 for limit=30, 5 for the 50 maximum, so 25 credits at the top - holds that many up front and refunds every page it did not need. Two partial refunds sit inside the per-page price: a shares leg that fails outright refunds 4 of the 5 credits for that page, leaving the 1-credit list price, and a `user_id`-only call refunds the same 4 because the shares leg needs a handle. A shares leg that succeeds with low coverage is still the full 5, because the second source was queried either way" },
     archetype: "Analytics",
     summary: "Instagram reels with views, likes, comments, and per-reel share counts where available, in one call.",
     description:
       "Returns a creator's recent reels with views, likes, comments, and the per-reel share count merged in wherever the upstream exposes it: in a single call. The standard /v1/instagram/profile/reels endpoint returns views/likes/comments but leaves engagement.shares null (its upstream has no per-post reshare count); this composite fans out to a second mobile source that carries the share number and merges it back onto each item by post id. Share coverage is best-effort and varies by account: the mobile source only exposes reshare_count for the items it returns, so some (sometimes most) items keep engagement.shares null. That null means \"upstream doesn't expose it\", not \"zero\". Read shares_coverage (the fraction of returned items that got a real share number) before relying on shares; legs[] shows each leg's status. Billing: the standard leg is critical (its failure refunds the full call); the shares leg is best-effort: if it fails OUTRIGHT the items still return with shares null and 4 of the 5 credits are refunded (you pay the standard 1-credit list price). A successful shares leg with low coverage is still the flat 5 credits, since the second source was queried regardless of how many items it happened to cover. Paginate with next_cursor.",
     execution: "sync",
     pagination: { style: "cursor", nativeParam: "cursor", limitParam: "limit", limitMax: 50 },
+    paginatable: true,
     collectUntilN: "`limit` (1-50) walks upstream pages server-side until that many items are collected, billing per page of ~12 consumed (5 credits each, 5-25 total). It is not a page size.",
     cache: { category: "post", ttlSeconds: 600 },
     family: "prism",
+    tags: ["instagram", "prism"],
   },
   {
     platform: "instagram",
@@ -2026,16 +2298,18 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [["handle", "user_id"]],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 25, pageSize: 12 },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 25, pageSize: 12, description: "5 credits per upstream page of about 12 posts. With no `limit` that is one page and a flat 5 credits. With `limit` set the composite walks `ceil(limit / 12)` pages - 3 for limit=30, 5 for the 50 maximum, so 25 credits at the top - holds that many up front and refunds every page it did not need. Two partial refunds sit inside the per-page price: a shares leg that fails outright refunds 4 of the 5 credits for that page, leaving the 1-credit list price, and a `user_id`-only call refunds the same 4 because the shares leg needs a handle. A shares leg that succeeds with low coverage is still the full 5, because the second source was queried either way" },
     archetype: "Analytics",
     summary: "Instagram posts with views, likes, comments, and per-post share counts where available, in one call.",
     description:
       "Returns a creator's recent posts with views, likes, comments, and the per-post share count merged in wherever the upstream exposes it: in a single call. The standard /v1/instagram/profile/posts endpoint returns views/likes/comments but leaves engagement.shares null (its upstream has no per-post reshare count); this composite fans out to a second mobile source that carries the share number and merges it back onto each item by post id. Share coverage is best-effort and varies by account: the mobile source only exposes reshare_count for the items it returns, so some (sometimes most) items keep engagement.shares null. That null means \"upstream doesn't expose it\", not \"zero\". Read shares_coverage (the fraction of returned items that got a real share number) before relying on shares; legs[] shows each leg's status. Billing: the standard leg is critical (its failure refunds the full call); the shares leg is best-effort: if it fails OUTRIGHT the items still return with shares null and 4 of the 5 credits are refunded (you pay the standard 1-credit list price). A successful shares leg with low coverage is still the flat 5 credits, since the second source was queried regardless of how many items it happened to cover. Paginate with next_cursor.",
     execution: "sync",
     pagination: { style: "cursor", nativeParam: "cursor", limitParam: "limit", limitMax: 50 },
+    paginatable: true,
     collectUntilN: "`limit` (1-50) walks upstream pages server-side until that many items are collected, billing per page of ~12 consumed (5 credits each, 5-25 total). It is not a page size.",
     cache: { category: "post", ttlSeconds: 600 },
     family: "prism",
+    tags: ["instagram", "prism"],
   },
   // --- youtube (29 endpoints) ---
   {
@@ -2059,6 +2333,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns public channel information for a YouTube channel including subscriber count, total video count, total view count, channel description, banner URL, and avatar URL. `author.followers` is YouTube's publicly published subscriber figure. Above 1,000 subscribers YouTube rounds that figure to three significant figures, and `author.ext.followers_approximate` is true. When the channel publishes a contact email in its public description, it is returned as `author.ext.public_email`; otherwise that leaf is null.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["youtube"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "youtube",
@@ -2072,13 +2348,15 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     oneOfGroups: [["channelId", "handle", "url"]],
     creditTier: "premium",
-    creditCost: 60,
-    pricing: { cost: 60, tier: "premium", ladderCost: 10, model: "flat" },
+    creditCost: 25,
+    pricing: { cost: 25, tier: "premium", ladderCost: 10, model: "flat" },
     archetype: "Author",
     summary: "Get a YouTube channel's contact email and country. Try the 1-credit youtube/channel first: it already carries the email for some channels, and you are charged here only when an address is returned",
     description:
-      "Returns the contact email a YouTube channel publishes behind its View email address control (`author.ext.public_email`) and the country listed on the channel (`author.ext.country`), together with the channel's id, handle, name, subscriber count and video count. CHECK THE CHEAP LANE FIRST: `GET /v1/youtube/channel` costs 1 credit and already returns `author.ext.public_email` when the channel writes an address into its public description, which covered 17% of a 12-channel sample. Call this endpoint only when that field came back null; it reads the authenticated About-tab control instead and found an address on a further 58% of the same sample. You are charged ONLY when an address is returned: a channel that publishes none costs 0 credits, and so does a channel that does not exist (404).",
+      "Returns the contact email a YouTube channel publishes, including the address behind its View email address control (`author.ext.public_email`), and the country listed on the channel (`author.ext.country`), together with the channel's id, handle, name, subscriber count and video count. CHECK THE CHEAP LANE FIRST: `GET /v1/youtube/channel` costs 1 credit and already returns `author.ext.public_email` when the channel writes an address into its public description, which covered 17% of a 12-channel sample. Call this endpoint only when that field came back null; it reads the About tab directly and found an address on a further 58% of the same sample. You are charged ONLY when an address is returned: a channel that publishes none costs 0 credits, and so does a channel that does not exist (404).",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["youtube"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "youtube",
@@ -2092,17 +2370,23 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "continuationToken", type: "string", description: "Continuation token to get more videos. Get 'continuationToken' from previous response." },
       { name: "includeExtras", type: "string", description: "Set to `true` to add the like count and comment count (`post.engagement.likes` / `.comments`) and the video description (`post.ext.description`). For the full per-video detail use /v1/youtube/video. Slows the response slightly." },
       { name: "is_paid_promotions", type: "string", description: "Set to 'true' to search YouTube's public paid product placement / sponsorship / endorsement surface: returns normal videos where the creator disclosed a paid promotion." },
+      { name: "include", type: "enum", enumValues: ["channel"], description: "Set to `channel` (one token only) to add the channel's subscriber count to every row (`post.ext.author_followers`, YouTube's own figure, rounded to three significant figures above 1,000) plus `post.author.display_name`, `.avatar_url` and `post.ext.channel_id` where missing. Every row is the same channel, so this is one channel lookup for the whole page: 1 credit, refunded if the channel could not be read, and free when the channel was looked up recently. Adds well under a second (never more than 8). Read `data.hydration` for what it did." },
     ],
     oneOfGroups: [["channelId", "handle"]],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 2, description: "1 credit for the page. include=channel adds 1 credit for the single channel lookup the page shares, refunded if the channel could not be read and free when it was looked up recently." },
     archetype: "PostList",
     summary: "List YouTube channel videos",
     description:
-      "Returns a list of recent videos published by a YouTube channel. Each video includes title, view count, like count, comment count, duration, thumbnail URL, and publish date. SHORTS: this reads the channel's Videos tab, which is long-form only. Shorts are a separate shelf on YouTube and never appear here (measured 0 of 30 items on 2 channels, 2026-08-11). For a channel's Shorts call `/v1/youtube/channel/shorts` (1 credit, same `channelId`/`handle`); the two sets are disjoint, so calling both and concatenating gives the channel's full catalogue for 2 credits. Every item on both endpoints carries `post.ext.content_type` (`video` or `short`) so the merged list stays separable.",
+      "Returns a list of recent videos published by a YouTube channel. Each video includes title, view count, like count, comment count, duration, thumbnail URL, and publish date. SHORTS: this reads the channel's Videos tab, which is long-form only. Shorts are a separate shelf on YouTube and never appear here (measured 0 of 30 items on 2 channels, 2026-08-11). For a channel's Shorts call `/v1/youtube/channel/shorts` (1 credit, same `channelId`/`handle`); the two sets are disjoint, so calling both and concatenating gives the channel's full catalogue for 2 credits. Every item on both endpoints carries `post.ext.content_type` (`video` or `short`) so the merged list stays separable. Send `include=channel` to add the channel's subscriber count to every row in the same call (1 credit).",
     pagination: { style: "cursor", nativeParam: "continuationToken" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "channel", sibling: "youtube/channel", fills: ["post.ext.author_followers", "post.author.display_name", "post.author.avatar_url", "post.ext.channel_id"], creditsPerItem: 1, maxItems: 1, cacheSibling: true, warnings: { unavailable: "channel_unavailable", partial: "channel_partial" } },
+    ],
   },
   {
     platform: "youtube",
@@ -2124,6 +2408,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns detailed information about a specific YouTube video including title, view count, like count, comment count, description, tags, duration, channel info, and publish date.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["youtube"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "youtube",
@@ -2139,13 +2425,15 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 100, pageSize: 50 },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 100, pageSize: 50, description: "5 credits per 50-id chunk, so a 50-id batch is 5 credits and the 1,000-id maximum is 100. Batching is what makes this cheap: the same 1,000 videos fetched one at a time through GET /v1/youtube/video cost 1,000 credits. A chunk is charged whether or not every id in it resolves, so there is no per-id refund; a call that resolves nothing at all is refunded in full" },
     archetype: "PostList",
     summary: "Batch get YouTube video details (up to 1000)",
     description:
       "Fetches full details for up to 1000 YouTube videos by id in a single POST request. Each item is the same unified video object as GET /v1/youtube/video. Body: { ids: string[], includeLocalizations?: boolean }. Metered per 50-id chunk; a request that resolves no videos at all returns 200 with an empty list at 0 credits.",
     singlePage: "Batch-by-ids: caller supplies the full id set; there is no next page.",
     cache: { category: "post", ttlSeconds: 0 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "youtube",
@@ -2161,13 +2449,15 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 100, pageSize: 50 },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 100, pageSize: 50, description: "5 credits per 50-id chunk, so a 50-id batch is 5 credits and the 1,000-id maximum is 100. Batching is what makes this cheap: the same 1,000 channels fetched one at a time through GET /v1/youtube/channel cost 1,000 credits. A chunk is charged whether or not every id in it resolves, so there is no per-id refund; a call that resolves nothing at all is refunded in full" },
     archetype: "AuthorList",
     summary: "Batch get YouTube channel details (up to 1000)",
     description:
       "Fetches full details for up to 1000 YouTube channels by id in a single POST request. Each item is the unified channel (author) object. Body: { ids: string[], includeLocalizations?: boolean }. Metered per 50-id chunk; a request that resolves no channels at all returns 200 with an empty list at 0 credits.",
     singlePage: "Batch-by-ids: caller supplies the full id set; there is no next page.",
     cache: { category: "profile", ttlSeconds: 0 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "youtube",
@@ -2192,6 +2482,7 @@ export const ENDPOINTS: Endpoint[] = [
     streaming: "accept-header",
     cache: { category: "post", ttlSeconds: 0 },
     family: "prism",
+    tags: ["youtube"],
   },
   {
     platform: "youtube",
@@ -2212,6 +2503,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Checks a YouTube video for the paid-promotion disclosure and infers likely sponsors/promoted brands from the public description, description links, promo-code text, and transcript. Experimental upstream: sponsor attribution is inferred, with per-sponsor confidence and evidence.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["youtube"],
   },
   {
     platform: "youtube",
@@ -2238,6 +2530,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a list of comments on a specific YouTube video. Each comment includes the author name, comment text, like count, reply count, and an exact per-second publish timestamp. For a date-window pull (say, the last two years of comments), request `order=newest` and paginate: rows arrive newest-first on `comment.published_at` and each next page continues strictly older with no overlap, so keep the rows inside your window and stop paging once a page's oldest row falls before it. There is no server-side date parameter because YouTube exposes none for comments: a filter here would walk the same pages at the same cost, so the cutoff belongs client-side where it can also stop the walk. One caveat for that walk: the first row of the first page can be the video's pinned comment regardless of `order`, so filter rows by timestamp rather than terminating at the first out-of-window row.",
     pagination: { style: "cursor", nativeParam: "continuationToken" },
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "youtube",
@@ -2260,6 +2554,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "cursor", nativeParam: "continuationToken" },
     emptyOn404: true,
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "youtube",
@@ -2271,22 +2567,30 @@ export const ENDPOINTS: Endpoint[] = [
     optionalParams: [
       { name: "uploadDate", type: "enum", enumValues: ["today", "this_week", "this_month", "this_year"], description: "Upload date filter. Reliable on its own (no `type`). With `type=shorts`, windows narrower than `this_year` are rejected with a 400 because YouTube returns an empty set for them; `this_year` is accepted but measured to return ~5x fewer unique Shorts across a paginated walk (the upstream re-serves the same items under an advancing `continuationToken`), so the recommended pattern for Shorts recency is no `uploadDate` at all plus `includeExtras=true` and a client-side filter on `post.published_at`. With other `type` values the upstream currently ignores the date filter and may mix content kinds; filter client-side there too. For an EXACT date window rather than these coarse buckets, use `/v1/youtube/search/advanced`, whose `published_after`/`published_before` take RFC-3339 bounds and are genuinely applied." },
       { name: "sortBy", type: "enum", enumValues: ["relevance", "popular"], description: "Sort order: relevance or popular. `popular` cannot be combined with `type=shorts` (rejected with a 400. YouTube serves that combination unreliably); it also caps the page at ~20 results. It is also NOT a strict view-count sort: `popular` is a popularity-weighted ranking, and results do not come back in descending view order. Measured on 4 of 4 test keywords: a `new york` search returned 9.5M, then 502.9M, then 66K views in that order. If you need a view-faithful ordering, use `/v1/youtube/search/advanced` with `order=viewCount` and `includeExtras=true`: its ranking leads with the true top results, and the returned `engagement.views` lets you sort the page exactly client-side." },
-      { name: "type", type: "enum", enumValues: ["videos", "shorts", "channels", "playlists"], description: "Type of content to return. NOTE for `type=shorts`: the Shorts shelf item carries NO channel object upstream, so every Shorts result has `post.author.*` and `post.ext.channel_id` null: measured 0 of 98 items across 3 keywords (2026-08-10), on the raw upstream too, and `includeExtras=true` does not add them. Video results are unaffected (20/20 carry both). To attach a creator to Shorts results, take the `post.id` values and call `POST /v1/youtube/videos` (5 credits per 50 ids), which returns `post.ext.channel_id` for every one; `/v1/youtube/search/advanced` also carries `channel_id` on every result at 1 credit, though it has no Shorts filter.", example: "videos" },
+      { name: "type", type: "enum", enumValues: ["videos", "shorts", "channels", "playlists"], description: "Type of content to return. NOTE for `type=shorts`: the Shorts shelf item carries NO channel object upstream, so every Shorts result has `post.author.*` and `post.ext.channel_id` null: measured 0 of 98 items across 3 keywords (2026-08-10), on the raw upstream too, and `includeExtras=true` does not add them. Video results are unaffected (20/20 carry both). To attach a creator to Shorts results in the same call, send `include=engagement` (the per-video lookup fills `post.ext.channel_id` and `post.author.display_name` on every one, at most 5 credits a page) and add `channel` (`include=engagement,channel`) for the subscriber count; `/v1/youtube/search/advanced` also carries `channel_id` on every result at 1 credit, though it has no Shorts filter.", example: "videos" },
       { name: "duration", type: "enum", enumValues: ["under_3_min", "between_3_and_20_min", "over_20_min"], description: "Video duration filter. KNOWN UPSTREAM ISSUE: currently not applied by the provider and it can degrade the `type` filter; prefer filtering client-side on `post.content.duration_seconds`." },
       { name: "region", type: "string", description: "2-letter country code of the country to put the proxy in." },
       { name: "continuationToken", type: "string", description: "Continuation token to get more results. Get `continuationToken` from a previous response." },
-      { name: "includeExtras", type: "string", description: "Set to `true` to add the like count and comment count (`post.engagement.likes` / `.comments`) and the video description (`post.ext.description`) to each video result. Left off, those three are null. IT IS ALSO WHAT MAKES `post.published_at` EXACT, on every result type. Without it the upstream re-derives the date from a relative label such as \"4 months ago\" at request time: the time-of-day is fabricated, every row on the page shares it, and the date itself was measured 17, 79 and 125 days off the true instant on three videos. Send this flag for any recency-sensitive work, or use `/v1/youtube/search/advanced`, which carries an exact date on every result without a flag. For Shorts results it additionally supplies `post.content.duration_seconds`, which those items never carry otherwise. Costs latency and page depth: measured 2387ms and 20 rows without, 9763ms and 16 rows with, on the same query. It does NOT add channel identity to Shorts results (see `type`) and it never adds a subscriber count: no search surface on any platform returns one. For the channel's subscriber count take `post.ext.channel_id` and call `GET /v1/youtube/channel?channelId=` (1 credit, `author.followers`) or batch it with `POST /v1/youtube/channels` (up to 1000 ids, 5 credits per 50). For full per-video details use `/v1/youtube/video`." },
+      { name: "includeExtras", type: "string", description: "Set to `true` to add the like count and comment count (`post.engagement.likes` / `.comments`) and the video description (`post.ext.description`) to each video result. Left off, those three are null. IT IS ALSO WHAT MAKES `post.published_at` EXACT, on every result type. Without it the upstream re-derives the date from a relative label such as \"4 months ago\" at request time: the time-of-day is fabricated, every row on the page shares it, and the date itself was measured 17, 79 and 125 days off the true instant on three videos. Send this flag for any recency-sensitive work, or use `/v1/youtube/search/advanced`, which carries an exact date on every result without a flag. For Shorts results it additionally supplies `post.content.duration_seconds`, which those items never carry otherwise. Costs latency and page depth: measured 2387ms and 20 rows without, 9763ms and 16 rows with, on the same query. It does NOT add channel identity to Shorts results (see `type`) and it never adds a subscriber count. For both, send `include=engagement,channel` instead: the video join supplies every row's channel id and exact date, and the channel join adds the subscriber count, in this same call. For full per-video details use `/v1/youtube/video`." },
+      { name: "include", type: "string", description: "Set to `engagement`, `channel`, or both (`engagement,channel`) to fill more of every row in this one call. `engagement` fills `post.engagement.views`, `.likes` and `.comments`, `post.content.duration_seconds`, `post.ext.channel_id` and `post.author.display_name` where the row lacks them, and replaces a date derived from a label such as \"4 months ago\" with the exact publish time (removing `post.ext.published_precision`). `channel` puts the channel's subscriber count on `post.ext.author_followers` (YouTube's own figure, which it rounds to three significant figures above 1,000) and fills the channel's `post.author.display_name`, `.avatar_url` and `.username` where missing. Send both to cover rows that arrive without a channel id: the video join supplies it and the channel join then uses it. Each join costs 1 credit per distinct video or channel it filled, and never more than 5 per 50; ids that could not be filled are refunded. Channel and playlist result rows are not videos: the video join skips them. Each join adds 0.2 to 0.7 seconds on a fresh page (one lookup per 50 ids, never more than 8 seconds). Read `data.hydration` for the rows, lookups, credits held and kept, and the time." },
     ],
     oneOfGroups: [],
+    csvConstraints: { "include": { max: 2, enumValues: ["engagement", "channel"] } },
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 11, description: "1 credit for the page. include=engagement and include=channel each add 1 credit per distinct video or channel filled, at most 5 per join on a page of up to 50 rows, so a page with both is at most 11 credits; ids that could not be filled are refunded, and a repeat of the same call within the cache window costs 0." },
     archetype: "PostList",
     summary: "Search YouTube",
     description:
-      "Searches YouTube by keyword. Returns matching videos, shorts, and live streams (an untyped search returns all three; `type` scopes to one kind, including channels and playlists). Each video result includes title, URL, thumbnail, view count, publish date, duration, channel info, and badges. DATES: without `includeExtras=true`, `post.published_at` on EVERY result type is derived by the upstream from a relative label such as \"4 months ago\", so it is approximate (measured up to four months off) and its time-of-day is not real. Send `includeExtras=true` for the exact per-second publish instant, or use `/v1/youtube/search/advanced`, which carries one on every result. Durations for Shorts also need the flag.",
+      "Searches YouTube by keyword. Returns matching videos, shorts, and live streams (an untyped search returns all three; `type` scopes to one kind, including channels and playlists). Each video result includes title, URL, thumbnail, view count, publish date, duration, channel info, and badges. DATES: without `includeExtras=true`, `post.published_at` on EVERY result type is derived by the upstream from a relative label such as \"4 months ago\", so it is approximate (measured up to four months off) and its time-of-day is not real. Send `includeExtras=true` for the exact per-second publish instant, or use `/v1/youtube/search/advanced`, which carries one on every result. Durations for Shorts also need the flag. Send `include=engagement` to fill likes, comments, the duration, the exact publish time and the channel id on every video and Short in the same call from the per-video lookup (faster than `includeExtras`, and it keeps the full page), and `include=channel` to add each channel's subscriber count (`post.ext.author_followers`); each costs 1 credit per distinct video or channel filled, at most 5 per page.",
     pagination: { style: "cursor", nativeParam: "continuationToken" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "engagement", sibling: "youtube/videos", siblingMethod: "POST", fills: ["post.engagement.views", "post.engagement.likes", "post.engagement.comments", "post.content.duration_seconds", "post.published_at", "post.ext.channel_id", "post.author.display_name"], creditsPerItem: 1, maxItems: 50, batch: { size: 50, creditCap: 5 }, cacheSibling: true, warnings: { unavailable: "engagement_unavailable", partial: "engagement_partial" } },
+      { param: "include", token: "channel", sibling: "youtube/channels", siblingMethod: "POST", fills: ["post.ext.author_followers", "post.author.display_name", "post.author.avatar_url", "post.author.username"], creditsPerItem: 1, maxItems: 50, batch: { size: 50, creditCap: 5 }, cacheSibling: true, warnings: { unavailable: "channel_unavailable", partial: "channel_partial" } },
+    ],
   },
   {
     platform: "youtube",
@@ -2298,17 +2602,23 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "channelId", type: "string", description: "Can pass channelId or handle" },
       { name: "sort", type: "enum", enumValues: ["newest", "popular"], description: "Sort by newest (descending publish date) or popular (descending view count). Both orderings are genuinely applied, unlike `/v1/youtube/search`'s `popular`, which is a popularity-weighted ranking rather than a view sort." },
       { name: "continuationToken", type: "string", description: "Continuation token to get more videos. Get 'continuationToken' from previous response." },
+      { name: "include", type: "enum", enumValues: ["channel"], description: "Set to `channel` (one token only) to add the channel's subscriber count to every row (`post.ext.author_followers`, YouTube's own figure, rounded to three significant figures above 1,000) plus `post.author.display_name`, `.avatar_url` and `post.ext.channel_id` where missing. Every row is the same channel, so this is one channel lookup for the whole page: 1 credit, refunded if the channel could not be read, and free when the channel was looked up recently. Adds well under a second (never more than 8). Read `data.hydration` for what it did." },
     ],
     oneOfGroups: [["channelId", "handle"]],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 2, description: "1 credit for the page. include=channel adds 1 credit for the single channel lookup the page shares, refunded if the channel could not be read and free when it was looked up recently." },
     archetype: "PostList",
     summary: "List YouTube channel shorts",
     description:
-      "Returns a list of YouTube Shorts published by a channel, read from the channel's own Shorts shelf. Each short includes view count, like count, comment count, title, thumbnail, duration and exact publish date (measured 100% coverage on all six across 96 items, 2026-08-11), and unlike `/v1/youtube/search?type=shorts` every item carries channel identity. This is the Shorts complement to `/v1/youtube/channel/videos`, which is long-form only: the two sets are disjoint, so calling both and concatenating gives the channel's full catalogue for 2 credits. Every item carries `post.ext.content_type` (`short` here, `video` there) so the merged list stays separable.",
+      "Returns a list of YouTube Shorts published by a channel, read from the channel's own Shorts shelf. Each short includes view count, like count, comment count, title, thumbnail, duration and exact publish date (measured 100% coverage on all six across 96 items, 2026-08-11), and unlike `/v1/youtube/search?type=shorts` every item carries channel identity. This is the Shorts complement to `/v1/youtube/channel/videos`, which is long-form only: the two sets are disjoint, so calling both and concatenating gives the channel's full catalogue for 2 credits. Every item carries `post.ext.content_type` (`short` here, `video` there) so the merged list stays separable. Send `include=channel` to add the channel's subscriber count, name, avatar and channel id to every row in the same call (1 credit).",
     pagination: { style: "cursor", nativeParam: "continuationToken" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "channel", sibling: "youtube/channel", fills: ["post.ext.author_followers", "post.author.display_name", "post.author.avatar_url", "post.ext.channel_id"], creditsPerItem: 1, maxItems: 1, cacheSibling: true, warnings: { unavailable: "channel_unavailable", partial: "channel_partial" } },
+    ],
   },
   {
     platform: "youtube",
@@ -2327,6 +2637,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns details of a YouTube community post including text content, like count, comment count, images, and author info.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["youtube"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "youtube",
@@ -2338,17 +2650,25 @@ export const ENDPOINTS: Endpoint[] = [
     optionalParams: [
       { name: "cursor", type: "string", description: "Pagination cursor from a previous response: fetches the next page." },
       { name: "channel_id", type: "string", description: "YouTube channel id: pages that channel's uploads instead of a playlist." },
+      { name: "include", type: "string", description: "Set to `engagement`, `channel`, or both (`engagement,channel`) to fill more of every row in this one call. `engagement` fills `post.engagement.views`, `.likes` and `.comments`, `post.content.duration_seconds`, `post.ext.channel_id` and `post.author.display_name` where the row lacks them, and replaces a date derived from a label such as \"4 months ago\" with the exact publish time (removing `post.ext.published_precision`). `channel` puts the channel's subscriber count on `post.ext.author_followers` (YouTube's own figure, which it rounds to three significant figures above 1,000) and fills the channel's `post.author.display_name`, `.avatar_url` and `.username` where missing. Send both to cover rows that arrive without a channel id: the video join supplies it and the channel join then uses it. Each join costs 1 credit per distinct video or channel it filled, and never more than 5 per 50; ids that could not be filled are refunded. Each join adds 0.2 to 0.7 seconds on a fresh page (one lookup per 50 ids, never more than 8 seconds). Read `data.hydration` for the rows, lookups, credits held and kept, and the time." },
     ],
     oneOfGroups: [],
+    csvConstraints: { "include": { max: 2, enumValues: ["engagement", "channel"] } },
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 11, description: "1 credit for the page. include=engagement and include=channel each add 1 credit per distinct video or channel filled, at most 5 per join on a page of up to 50 rows, so a page with both is at most 11 credits; ids that could not be filled are refunded, and a repeat of the same call within the cache window costs 0." },
     archetype: "PostList",
     summary: "Get YouTube playlist",
     description:
-      "Returns videos in a YouTube playlist including titles, view counts, durations, thumbnails, and channel info.",
+      "Returns the videos in a YouTube playlist in playlist order: video id, title, thumbnail, the video's own channel (`post.author.display_name`, `post.ext.channel_id`) and its publish date, plus a `cursor` for the next page. YouTube's playlist listing carries no view, like or comment counts and no duration, so on a plain call those are null. Send `include=engagement` and every row is joined, in the same call, to the per-video lookup that carries them, and `include=channel` adds each video's channel subscriber count; each costs 1 credit per distinct video or channel filled, at most 5 per page. This endpoint and `/v1/youtube/playlist/items` return the same rows from the same source; this one additionally has a second source behind it, so prefer it when availability matters.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "engagement", sibling: "youtube/videos", siblingMethod: "POST", fills: ["post.engagement.views", "post.engagement.likes", "post.engagement.comments", "post.content.duration_seconds", "post.published_at", "post.ext.channel_id", "post.author.display_name"], creditsPerItem: 1, maxItems: 50, batch: { size: 50, creditCap: 5 }, cacheSibling: true, warnings: { unavailable: "engagement_unavailable", partial: "engagement_partial" } },
+      { param: "include", token: "channel", sibling: "youtube/channels", siblingMethod: "POST", fills: ["post.ext.author_followers", "post.author.display_name", "post.author.avatar_url", "post.author.username"], creditsPerItem: 1, maxItems: 50, batch: { size: 50, creditCap: 5 }, cacheSibling: true, warnings: { unavailable: "channel_unavailable", partial: "channel_partial" } },
+    ],
   },
   {
     platform: "youtube",
@@ -2360,34 +2680,49 @@ export const ENDPOINTS: Endpoint[] = [
     optionalParams: [
       { name: "continuationToken", type: "string", description: "Continuation token to get more videos. Get 'continuationToken' from previous response." },
       { name: "type", type: "enum", enumValues: ["all", "shorts"], description: "Search for all types of content or only shorts" },
+      { name: "include", type: "string", description: "Set to `engagement`, `channel`, or both (`engagement,channel`) to fill more of every row in this one call. `engagement` fills `post.engagement.views`, `.likes` and `.comments`, `post.content.duration_seconds`, `post.ext.channel_id` and `post.author.display_name` where the row lacks them, and replaces a date derived from a label such as \"4 months ago\" with the exact publish time (removing `post.ext.published_precision`). `channel` puts the channel's subscriber count on `post.ext.author_followers` (YouTube's own figure, which it rounds to three significant figures above 1,000) and fills the channel's `post.author.display_name`, `.avatar_url` and `.username` where missing. Send both to cover rows that arrive without a channel id: the video join supplies it and the channel join then uses it. Each join costs 1 credit per distinct video or channel it filled, and never more than 5 per 50; ids that could not be filled are refunded. Each join adds 0.2 to 0.7 seconds on a fresh page (one lookup per 50 ids, never more than 8 seconds). Read `data.hydration` for the rows, lookups, credits held and kept, and the time." },
     ],
     oneOfGroups: [],
+    csvConstraints: { "include": { max: 2, enumValues: ["engagement", "channel"] } },
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 11, description: "1 credit for the page. include=engagement and include=channel each add 1 credit per distinct video or channel filled, at most 5 per join on a page of up to 50 rows, so a page with both is at most 11 credits; ids that could not be filled are refunded, and a repeat of the same call within the cache window costs 0." },
     archetype: "PostList",
     summary: "Search YouTube by hashtag",
     description:
-      "Searches YouTube for videos under a specific hashtag. Returns matching videos with view counts, channel info, and publish dates. TWO LIMITATIONS, both from the upstream. Dates are approximate: `post.published_at` is derived from a relative label such as \"3 weeks ago\", so its time-of-day is not real and the date is only as precise as the label. For exact publish instants search the hashtag as a keyword on `/v1/youtube/search/advanced`. Rows are also uneven: a large minority carry only id, URL, title and view count, so `post.published_at`, `post.content.duration_seconds`, `post.author.*` and `post.content.thumbnail_url` are null on them. Both are properties of YouTube's hashtag shelf, not of your query.",
+      "Searches YouTube for videos under a specific hashtag. Returns matching videos with view counts, channel info, and publish dates. TWO LIMITATIONS, both from the upstream. Dates are approximate: `post.published_at` is derived from a relative label such as \"3 weeks ago\", so its time-of-day is not real and the date is only as precise as the label. For exact publish instants search the hashtag as a keyword on `/v1/youtube/search/advanced`. Rows are also uneven: a large minority carry only id, URL, title and view count, so `post.published_at`, `post.content.duration_seconds`, `post.author.*` and `post.content.thumbnail_url` are null on them. Both are properties of YouTube's hashtag shelf, not of your query. Send `include=engagement` to fill both in the same call: every row is joined to the per-video lookup, which supplies likes, comments, the duration, the exact publish time and the channel; `include=channel` adds the channel's subscriber count. Each costs 1 credit per distinct video or channel filled, at most 5 per page.",
     pagination: { style: "cursor", nativeParam: "continuationToken" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "engagement", sibling: "youtube/videos", siblingMethod: "POST", fills: ["post.engagement.views", "post.engagement.likes", "post.engagement.comments", "post.content.duration_seconds", "post.published_at", "post.ext.channel_id", "post.author.display_name"], creditsPerItem: 1, maxItems: 50, batch: { size: 50, creditCap: 5 }, cacheSibling: true, warnings: { unavailable: "engagement_unavailable", partial: "engagement_partial" } },
+      { param: "include", token: "channel", sibling: "youtube/channels", siblingMethod: "POST", fills: ["post.ext.author_followers", "post.author.display_name", "post.author.avatar_url", "post.author.username"], creditsPerItem: 1, maxItems: 50, batch: { size: 50, creditCap: 5 }, cacheSibling: true, warnings: { unavailable: "channel_unavailable", partial: "channel_partial" } },
+    ],
   },
   {
     platform: "youtube",
     resource: "shorts/trending",
     method: "GET",
     params: [],
-    optionalParams: [],
+    optionalParams: [
+      { name: "include", type: "enum", enumValues: ["channel"], description: "Set to `channel` (one token only) to add each row's channel stats in this one call. `channel` puts the channel's subscriber count on `post.ext.author_followers` (YouTube's own figure, which it rounds to three significant figures above 1,000) and fills the channel's `post.author.display_name`, `.avatar_url` and `.username` where missing. Each join costs 1 credit per distinct video or channel it filled, and never more than 5 per 50; ids that could not be filled are refunded. Each join adds 0.2 to 0.7 seconds on a fresh page (one lookup per 50 ids, never more than 8 seconds). Read `data.hydration` for the rows, lookups, credits held and kept, and the time." },
+    ],
     oneOfGroups: [],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "ladder" },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 15, description: "5 credits for the feed. include=channel adds 1 credit per distinct channel filled, at most 5 per 50 channels (the feed carries about 70, so at most 10); channels that could not be read are refunded, and a repeat of the same call within the cache window costs 0." },
     archetype: "PostList",
     summary: "Get trending YouTube shorts",
     description:
-      "Returns currently trending YouTube Shorts with view counts, like counts, channel info, and thumbnails.",
+      "Returns currently trending YouTube Shorts with view counts, like counts, channel info, and thumbnails. Send `include=channel` to add each Short's channel subscriber count (`post.ext.author_followers`) in the same call.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "channel", sibling: "youtube/channels", siblingMethod: "POST", fills: ["post.ext.author_followers", "post.author.display_name", "post.author.avatar_url", "post.author.username"], creditsPerItem: 1, maxItems: 100, batch: { size: 50, creditCap: 5 }, cacheSibling: true, warnings: { unavailable: "channel_unavailable", partial: "channel_partial" } },
+    ],
   },
   {
     platform: "youtube",
@@ -2408,6 +2743,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the transcript of a YouTube video as timestamped segments: each with text, start `offset` and `duration` (seconds), language, word count, and speech rate. Supports multiple languages via `language`. When no transcript exists (the owner disabled captions, the video is login-gated or gone, or no caption track matches the requested language) the endpoint returns 404 RESOURCE_NOT_FOUND with `error.details.reason` set to `captions_disabled`, `login_required`, `no_captions`, or `video_gone`, no credits are charged, and retrying returns the same result.",
     cache: { category: "immutable", ttlSeconds: 2592000 },
+    tags: ["youtube"],
   },
   {
     platform: "youtube",
@@ -2429,6 +2765,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Fetches playlists from a YouTube channel's Playlists tab (playlist ID, title, thumbnail, video count, channel info, and playlist URL) plus a `continuationToken` when more results are available. Pass `handle` or `channelId` for the first page; forward `continuationToken` for subsequent pages.",
     pagination: { style: "cursor", nativeParam: "continuationToken" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "youtube",
@@ -2439,17 +2777,25 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "channelId", type: "string", description: "YouTube channel ID." },
       { name: "handle", type: "string", description: "YouTube channel handle (with or without @).", example: "IShowSpeed" },
       { name: "continuationToken", type: "string", description: "Continuation token from a previous response: fetches the next page." },
+      { name: "include", type: "string", description: "Set to `engagement`, `channel`, or both (`engagement,channel`) to fill more of every row in this one call. `engagement` fills `post.engagement.views`, `.likes` and `.comments`, `post.content.duration_seconds`, `post.ext.channel_id` and `post.author.display_name` where the row lacks them, and replaces a date derived from a label such as \"4 months ago\" with the exact publish time (removing `post.ext.published_precision`). The engagement join costs 1 credit per distinct stream it filled, never more than 5 per page, and streams that could not be filled are refunded. `channel` adds the channel's subscriber count (`post.ext.author_followers`, YouTube's own figure, rounded to three significant figures above 1,000) plus its avatar: every row is the same channel, so it is one lookup, 1 credit, refunded if it could not be read. Each join adds 0.2 to 0.7 seconds on a fresh page (one lookup per 50 ids, never more than 8 seconds). Read `data.hydration` for the rows, lookups, credits held and kept, and the time." },
     ],
     oneOfGroups: [["channelId", "handle"]],
+    csvConstraints: { "include": { max: 2, enumValues: ["engagement", "channel"] } },
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 7, description: "1 credit for the page. include=engagement adds 1 credit per distinct stream filled, at most 5 per page; include=channel adds 1 credit for the single channel lookup the page shares. Anything that could not be filled is refunded, so a page with both is at most 7 credits, and a repeat of the same call within the cache window costs 0." },
     archetype: "PostList",
     summary: "List a YouTube channel's live streams",
     description:
-      "Fetches live streams and past streams from a YouTube channel's Live tab (title, URL, thumbnail, view count, publish time, duration) plus a `continuationToken` when more results are available. Pass `handle` or `channelId` for the first page; forward `continuationToken` for subsequent pages. DATES ARE APPROXIMATE: `post.published_at` is derived from the tab's own relative label (\"Streamed 3 weeks ago\"), so its time-of-day is not real and the date is only as precise as that label. This tab publishes no exact timestamp. For an exact instant, take `post.id` and call `/v1/youtube/video`.",
+      "Fetches live streams and past streams from a YouTube channel's Live tab (title, URL, thumbnail, view count, publish time, duration) plus a `continuationToken` when more results are available. Pass `handle` or `channelId` for the first page; forward `continuationToken` for subsequent pages. DATES ARE APPROXIMATE: `post.published_at` is derived from the tab's own relative label (\"Streamed 3 weeks ago\"), so its time-of-day is not real and the date is only as precise as that label. This tab publishes no exact timestamp, and it publishes no like or comment counts. Send `include=engagement` and every row is joined, in the same call, to the per-video lookup: likes, comments, the exact publish time and the channel id land on each row (1 credit per distinct stream filled, at most 5 per page); `include=channel` adds the channel's subscriber count (1 credit).",
     pagination: { style: "cursor", nativeParam: "continuationToken" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "engagement", sibling: "youtube/videos", siblingMethod: "POST", fills: ["post.engagement.views", "post.engagement.likes", "post.engagement.comments", "post.content.duration_seconds", "post.published_at", "post.ext.channel_id", "post.author.display_name"], creditsPerItem: 1, maxItems: 50, batch: { size: 50, creditCap: 5 }, cacheSibling: true, warnings: { unavailable: "engagement_unavailable", partial: "engagement_partial" } },
+      { param: "include", token: "channel", sibling: "youtube/channel", fills: ["post.ext.author_followers", "post.author.display_name", "post.author.avatar_url", "post.ext.channel_id"], creditsPerItem: 1, maxItems: 1, cacheSibling: true, warnings: { unavailable: "channel_unavailable", partial: "channel_partial" } },
+    ],
   },
   {
     platform: "youtube",
@@ -2471,6 +2817,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Fetches community posts from a YouTube channel's Posts tab (post ID, URL, content, images, attached video, like count, publish time, channel info) plus a `continuationToken` when more results are available. Pass `handle` or `channelId` for the first page; forward `continuationToken` for subsequent pages. DATES ARE APPROXIMATE: `post.published_at` is derived from the tab's own relative label (\"2 days ago\"), so its time-of-day is not real and the date is only as precise as that label. This tab publishes no exact timestamp.",
     pagination: { style: "cursor", nativeParam: "continuationToken" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "youtube",
@@ -2483,17 +2831,23 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "language", type: "string", description: "Localization language (ISO 639-1) for titles/metadata." },
       { name: "max_results", type: "integer", description: "Maximum number of videos to return (1-50)." },
       { name: "cursor", type: "string", description: "Pagination cursor from a previous response: fetches the next page." },
+      { name: "include", type: "enum", enumValues: ["channel"], description: "Set to `channel` (one token only) to add each row's channel stats in this one call. `channel` puts the channel's subscriber count on `post.ext.author_followers` (YouTube's own figure, which it rounds to three significant figures above 1,000) and fills the channel's `post.author.display_name`, `.avatar_url` and `.username` where missing. Each join costs 1 credit per distinct video or channel it filled, and never more than 5 per 50; ids that could not be filled are refunded. Each join adds 0.2 to 0.7 seconds on a fresh page (one lookup per 50 ids, never more than 8 seconds). Read `data.hydration` for the rows, lookups, credits held and kept, and the time." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 6, description: "1 credit for the page. include=channel adds 1 credit per distinct channel filled, at most 5 per 50 channels; channels that could not be read are refunded, and a repeat of the same call within the cache window costs 0." },
     archetype: "PostList",
     summary: "Get trending YouTube videos",
     description:
-      "Returns the most popular (trending) YouTube videos for a region and category (title, thumbnail, duration, view/like/comment counts, channel, and publish time) plus a `cursor` when more results are available. Filter by `region` (ISO country) and `category` (YouTube category id); forward `cursor` for subsequent pages.",
+      "Returns the most popular (trending) YouTube videos for a region and category (title, thumbnail, duration, view/like/comment counts, channel, and publish time) plus a `cursor` when more results are available. Filter by `region` (ISO country) and `category` (YouTube category id); forward `cursor` for subsequent pages. Send `include=channel` to add each video's channel subscriber count (`post.ext.author_followers`) in the same call.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "channel", sibling: "youtube/channels", siblingMethod: "POST", fills: ["post.ext.author_followers", "post.author.display_name", "post.author.avatar_url", "post.author.username"], creditsPerItem: 1, maxItems: 50, batch: { size: 50, creditCap: 5 }, cacheSibling: true, warnings: { unavailable: "channel_unavailable", partial: "channel_partial" } },
+    ],
   },
   {
     platform: "youtube",
@@ -2505,17 +2859,25 @@ export const ENDPOINTS: Endpoint[] = [
     optionalParams: [
       { name: "cursor", type: "string", description: "Pagination cursor from a previous response: fetches the next page." },
       { name: "channel_id", type: "string", description: "YouTube channel id: pages that channel's uploads instead of a playlist." },
+      { name: "include", type: "string", description: "Set to `engagement`, `channel`, or both (`engagement,channel`) to fill more of every row in this one call. `engagement` fills `post.engagement.views`, `.likes` and `.comments`, `post.content.duration_seconds`, `post.ext.channel_id` and `post.author.display_name` where the row lacks them, and replaces a date derived from a label such as \"4 months ago\" with the exact publish time (removing `post.ext.published_precision`). `channel` puts the channel's subscriber count on `post.ext.author_followers` (YouTube's own figure, which it rounds to three significant figures above 1,000) and fills the channel's `post.author.display_name`, `.avatar_url` and `.username` where missing. Send both to cover rows that arrive without a channel id: the video join supplies it and the channel join then uses it. Each join costs 1 credit per distinct video or channel it filled, and never more than 5 per 50; ids that could not be filled are refunded. Each join adds 0.2 to 0.7 seconds on a fresh page (one lookup per 50 ids, never more than 8 seconds). Read `data.hydration` for the rows, lookups, credits held and kept, and the time." },
     ],
     oneOfGroups: [],
+    csvConstraints: { "include": { max: 2, enumValues: ["engagement", "channel"] } },
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 11, description: "1 credit for the page. include=engagement and include=channel each add 1 credit per distinct video or channel filled, at most 5 per join on a page of up to 50 rows, so a page with both is at most 11 credits; ids that could not be filled are refunded, and a repeat of the same call within the cache window costs 0." },
     archetype: "PostList",
     summary: "List the videos in a YouTube playlist",
     description:
-      "Returns the videos in a YouTube playlist in order (video id, title, thumbnail, owning channel, and publish time) plus a `cursor` when more results are available. Pass `playlist_id` for the first page; forward `cursor` for subsequent pages.",
+      "Returns the videos in a YouTube playlist in playlist order (video id, title, thumbnail, the video's own channel as `post.author.display_name` and `post.ext.channel_id`, the video's publish date, and its position and playlist-insertion time on `post.ext`) plus a `cursor` when more results are available. Pass `playlist_id` for the first page; forward `cursor` for subsequent pages. YouTube's playlist listing carries no view, like or comment counts and no duration, so on a plain call those are null. Send `include=engagement` and every row is joined, in the same call, to the per-video lookup that carries them, and `include=channel` adds each video's channel subscriber count; each costs 1 credit per distinct video or channel filled, at most 5 per page. `/v1/youtube/playlist` returns the same rows and additionally has a second source behind it.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "engagement", sibling: "youtube/videos", siblingMethod: "POST", fills: ["post.engagement.views", "post.engagement.likes", "post.engagement.comments", "post.content.duration_seconds", "post.published_at", "post.ext.channel_id", "post.author.display_name"], creditsPerItem: 1, maxItems: 50, batch: { size: 50, creditCap: 5 }, cacheSibling: true, warnings: { unavailable: "engagement_unavailable", partial: "engagement_partial" } },
+      { param: "include", token: "channel", sibling: "youtube/channels", siblingMethod: "POST", fills: ["post.ext.author_followers", "post.author.display_name", "post.author.avatar_url", "post.author.username"], creditsPerItem: 1, maxItems: 50, batch: { size: 50, creditCap: 5 }, cacheSibling: true, warnings: { unavailable: "channel_unavailable", partial: "channel_partial" } },
+    ],
   },
   {
     platform: "youtube",
@@ -2547,17 +2909,23 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "location", type: "string", description: "Latitude,longitude center for a geo search (e.g. 37.42307,-122.08427). Must be used together with location_radius." },
       { name: "location_radius", type: "string", description: "Radius around location with a unit suffix (e.g. 50km, 10mi). Must be used together with location." },
       { name: "includeExtras", type: "string", description: "Set to `true` to add the view, like and comment counts (`post.engagement.views` / `.likes` / `.comments`) and the video length (`post.content.duration_seconds`) to every result. Left off, those four are null. YouTube's search index returns snippets only, so the counts come from a second lookup. Costs +5 credits per page (a page is at most 50 results, so it is a flat +5, not per result) and adds one upstream round-trip. If that lookup fails the page still returns, un-hydrated, with the +5 refunded and `_warnings: [\"extras_unavailable\"]` on the response." },
+      { name: "include", type: "enum", enumValues: ["channel"], description: "Set to `channel` (one token only) to add each row's channel stats in this one call. `channel` puts the channel's subscriber count on `post.ext.author_followers` (YouTube's own figure, which it rounds to three significant figures above 1,000) and fills the channel's `post.author.display_name`, `.avatar_url` and `.username` where missing. Each join costs 1 credit per distinct video or channel it filled, and never more than 5 per 50; ids that could not be filled are refunded. Each join adds 0.2 to 0.7 seconds on a fresh page (one lookup per 50 ids, never more than 8 seconds). Read `data.hydration` for the rows, lookups, credits held and kept, and the time." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 6 },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 11, description: "1 credit for the search page. `includeExtras=true` adds a flat 5 credits for the single hydration call that fills view, like and comment counts and `duration_seconds` on the whole page. The increment never repeats: the page caps at 50 results, which one hydration call covers, so a hydrated page of 50 costs 6 credits and so does a hydrated page of 5. include=channel adds 1 credit per distinct channel filled, at most 5 per page, with channels that could not be read refunded, so a page with both is at most 11" },
     archetype: "PostList",
     summary: "Advanced YouTube video search",
     description:
-      "Searches YouTube videos with the full filter set: sort `order`, `duration`, live/upcoming `event_type`, Creative-Commons `license`, `category`, `region`, `language`, and `published_after`/`published_before` date windows: returning video id, title, thumbnail, channel, and publish time, plus a `cursor` for the next page. Results are always videos. This is the reliable lane for date-window, sort, and page-size work. `published_after`/`published_before` take exact RFC-3339 bounds and are genuinely applied (`/v1/youtube/search`'s coarse `uploadDate` buckets are silently dropped by that upstream whenever a `type` is also set); `order=date` is an exact sort (measured: zero inversions); `order=viewCount` is YouTube's popularity-weighted ranking: strongly view-correlated with the top result leading, but not strictly descending, so with `includeExtras=true` sort the page client-side on `engagement.views` for exact ranking (the counts are in the response); and `max_results` returns up to the page size you ask for, 1-50 (exact when YouTube has the supply). Every result carries an exact per-second `published_at`. Set `includeExtras=true` to add view/like/comment counts and `duration_seconds` to every result (+5 credits per page), without it those are null, because YouTube's search index returns snippets only. SHORTS: there is no `type=shorts` here and there cannot be. YouTube's Data API has no Shorts concept, so no filter can distinguish a vertical Short from any other video. The documented APPROXIMATION is `duration=short` (under 4 minutes) plus `includeExtras=true` and a client-side filter on `post.content.duration_seconds <= 180`; it will include short landscape videos, so treat it as a narrowing heuristic, not a Shorts filter. For a real Shorts shelf use `/v1/youtube/search?type=shorts`, which reads YouTube's own Shorts surface and carries its own caveats.",
+      "Searches YouTube videos with the full filter set: sort `order`, `duration`, live/upcoming `event_type`, Creative-Commons `license`, `category`, `region`, `language`, and `published_after`/`published_before` date windows: returning video id, title, thumbnail, channel, and publish time, plus a `cursor` for the next page. Results are always videos. This is the reliable lane for date-window, sort, and page-size work. `published_after`/`published_before` take exact RFC-3339 bounds and are genuinely applied (`/v1/youtube/search`'s coarse `uploadDate` buckets are silently dropped by that upstream whenever a `type` is also set); `order=date` is an exact sort (measured: zero inversions); `order=viewCount` is YouTube's popularity-weighted ranking: strongly view-correlated with the top result leading, but not strictly descending, so with `includeExtras=true` sort the page client-side on `engagement.views` for exact ranking (the counts are in the response); and `max_results` returns up to the page size you ask for, 1-50 (exact when YouTube has the supply). Every result carries an exact per-second `published_at`. Set `includeExtras=true` to add view/like/comment counts and `duration_seconds` to every result (+5 credits per page), without it those are null, because YouTube's search index returns snippets only. Send `include=channel` to add each result's channel subscriber count (`post.ext.author_followers`) in the same call (1 credit per distinct channel, at most 5 per page); the two combine. SHORTS: there is no `type=shorts` here and there cannot be. YouTube's Data API has no Shorts concept, so no filter can distinguish a vertical Short from any other video. The documented APPROXIMATION is `duration=short` (under 4 minutes) plus `includeExtras=true` and a client-side filter on `post.content.duration_seconds <= 180`; it will include short landscape videos, so treat it as a narrowing heuristic, not a Shorts filter. For a real Shorts shelf use `/v1/youtube/search?type=shorts`, which reads YouTube's own Shorts surface and carries its own caveats.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "channel", sibling: "youtube/channels", siblingMethod: "POST", fills: ["post.ext.author_followers", "post.author.display_name", "post.author.avatar_url", "post.author.username"], creditsPerItem: 1, maxItems: 50, batch: { size: 50, creditCap: 5 }, cacheSibling: true, warnings: { unavailable: "channel_unavailable", partial: "channel_partial" } },
+    ],
   },
   {
     platform: "youtube",
@@ -2579,6 +2947,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns YouTube's search autocomplete suggestions for a partial query: the same suggestions the search box shows. Useful for keyword expansion and SEO research. Returns a string list under `items`.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "youtube",
@@ -2596,9 +2966,11 @@ export const ENDPOINTS: Endpoint[] = [
     summary: "Get a YouTube video's audio file streams",
     description:
       "Returns the downloadable audio stream files for a YouTube video: each with a direct media `url`, mime type, bitrate, audio quality, sample rate, channels, and approximate duration. The stream URLs are time-limited: fetch them immediately and do not cache.",
-    singlePage: "Media-file list: the whole set (audio/subs/thumbnails/files) in one call.",
+    singlePage: "Media-file list: every available file of this one kind for the video in a single call; there is no second page. The other three kinds (audio, video files, subtitles, thumbnails) each have their own endpoint.",
     emptyOn404: true,
     cache: { category: "post", ttlSeconds: 0 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "youtube",
@@ -2616,9 +2988,11 @@ export const ENDPOINTS: Endpoint[] = [
     summary: "Get a YouTube video's video file streams",
     description:
       "Returns the downloadable video stream files for a YouTube video: each with a direct media `url`, mime type, resolution (`width`/`height`), quality label, fps, bitrate, and approximate duration. The stream URLs are time-limited: fetch them immediately and do not cache.",
-    singlePage: "Media-file list: the whole set (audio/subs/thumbnails/files) in one call.",
+    singlePage: "Media-file list: every available file of this one kind for the video in a single call; there is no second page. The other three kinds (audio, video files, subtitles, thumbnails) each have their own endpoint.",
     emptyOn404: true,
     cache: { category: "post", ttlSeconds: 0 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "youtube",
@@ -2638,9 +3012,11 @@ export const ENDPOINTS: Endpoint[] = [
     summary: "Get a YouTube video's subtitle files",
     description:
       "Returns the downloadable subtitle/caption track files for a YouTube video: each with a language code and name, format, and a direct download `url`. Includes both manual and auto-generated tracks across available subtitle formats (srt, vtt, ttml, …).",
-    singlePage: "Media-file list: the whole set (audio/subs/thumbnails/files) in one call.",
+    singlePage: "Media-file list: every available file of this one kind for the video in a single call; there is no second page. The other three kinds (audio, video files, subtitles, thumbnails) each have their own endpoint.",
     emptyOn404: true,
     cache: { category: "post", ttlSeconds: 0 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "youtube",
@@ -2658,9 +3034,11 @@ export const ENDPOINTS: Endpoint[] = [
     summary: "Get a YouTube video's thumbnail files",
     description:
       "Returns the thumbnail image files for a YouTube video at every available size: each with a direct image `url`, dimensions (`width`/`height`), aspect `ratio`, and image `format` (webp / jpg).",
-    singlePage: "Media-file list: the whole set (audio/subs/thumbnails/files) in one call.",
+    singlePage: "Media-file list: every available file of this one kind for the video in a single call; there is no second page. The other three kinds (audio, video files, subtitles, thumbnails) each have their own endpoint.",
     emptyOn404: true,
     cache: { category: "post", ttlSeconds: 0 },
+    tags: ["youtube"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "youtube",
@@ -2668,12 +3046,12 @@ export const ENDPOINTS: Endpoint[] = [
     method: "GET",
     params: [],
     optionalParams: [
-      { name: "handle", type: "string", example: "mrbeast" },
-      { name: "channelId", type: "string" },
-      { name: "url", type: "string" },
-      { name: "posts", type: "integer", description: "How many recent posts to fetch + average the computed metrics over (1-100, default 25).", example: "25" },
-      { name: "cursor", type: "string", description: "Pass a prior response's posts_cursor to deepen the post window." },
-      { name: "include", type: "string", description: "CSV subset of posts,computed (default both). include=computed drops the raw posts[] to save payload." },
+      { name: "handle", type: "string", description: "YouTube username or handle, with or without a leading @. One of the identity params is required.", example: "mrbeast" },
+      { name: "channelId", type: "string", description: "YouTube channel id, the 24-character string starting with UC. One of the identity params is required." },
+      { name: "url", type: "string", description: "Full YouTube profile or page URL. One of the identity params is required." },
+      { name: "posts", type: "integer", description: "How many of the fetched recent posts to return and compute the metrics over (1-100, default 25). One call reads one page, which on YouTube is up to 30 videos, so a larger value returns that page and a `_warnings` note; pass posts_cursor back as cursor for the next page.", example: "25" },
+      { name: "cursor", type: "string", description: "Pass a prior response's posts_cursor to read the next page of posts. Each call is a separate 5-credit call whose metrics cover that page only." },
+      { name: "include", type: "string", description: "CSV subset of posts,computed (default both). include=computed omits the raw posts[] array from the response to save payload. The metrics are computed from the same fetched posts either way, so they do not change." },
     ],
     oneOfGroups: [["handle", "channelId", "url"]],
     creditTier: "standard",
@@ -2682,11 +3060,13 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "YouTube profile, recent posts, and computed analytics in one call.",
     description:
-      "Fans out to the YouTube profile and recent-posts endpoints in parallel and returns the unified author, the recent-post list, and computed metrics: average engagement rate, posting cadence (with the window it was measured over), the top post, and the format mix. The profile leg is the only critical leg: if posts can't be fetched the call still returns the profile with post-dependent metrics null, and every leg's status is surfaced in legs[]. Flat 5 credits.",
+      "Fans out to the YouTube profile and recent-posts endpoints in parallel and returns the unified author, the recent-post list, and computed metrics: avg_engagement_rate, avg_engagement_rate_by_followers, posting cadence (with the window it was measured over), the top post, and the format mix. avg_engagement_rate is view-based: the mean of each post's (likes + comments + shares) / views, so only posts that carry a view count contribute, and it is null when none does. avg_engagement_rate_by_followers is the mean of likes + comments per post divided by the account's follower count, over every post that carries both, so it covers posts with no view count. One call reads one page of recent posts, which on YouTube is up to 30 videos, and computes the metrics over that page: `posts` can shorten the window but not lengthen it past one page, and `_warnings` says so when fewer posts came back than `posts` asked for. Pass `posts_cursor` back as `cursor` to read the next page, 5 credits a call. The profile leg is the only critical leg: if posts can't be fetched the call still returns the profile with post-dependent metrics null, and every leg's status is surfaced in legs[]. Flat 5 credits. The videos leg is fetched with `includeExtras=true` so like and comment counts populate on the same page as views.",
     execution: "sync",
     pagination: { style: "cursor", nativeParam: "cursor" },
+    paginatable: true,
     cache: { category: "profile", ttlSeconds: 900 },
     family: "prism",
+    tags: ["youtube", "prism"],
   },
   // --- twitter (15 endpoints) ---
   {
@@ -2706,6 +3086,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns public profile information for a Twitter/X user including follower count, following count, tweet count, bio, profile image URL, verification status, account privacy flag, and join date. The banner image is `author.ext.cover_url` and the website from the bio is `author.ext.bio_link`, resolved to its destination rather than the t.co shortener. `author.url` is the profile permalink; X publishes no total-likes-received figure, so `author.likes_count` is always null.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["twitter"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "twitter",
@@ -2728,6 +3110,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the most recent tweets posted by a Twitter/X user in descending chronological order, each with the full text, like count, retweet count, reply count, bookmark count, view count, media attachments, and creation timestamp. Retweets and self-threaded replies are included, matching the account's Posts tab; a pinned tweet is flagged via `post.flags.pinned` and sorts by its own publish date. A post carrying more than one photo lists every URL in `post.ext.all_media_urls`, while `post.content.media_urls` holds the first; `post.ext.quote_count` is how many times the post was quote-tweeted. Page size is set by the source, typically around 20 tweets. Deeper history is a cursor walk: send `pagination.next_cursor` back as `cursor` and repeat until `pagination.has_more` is false; each page costs 1 credit.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["twitter"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "twitter",
@@ -2748,6 +3132,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns detailed information about a specific tweet including the full text, like count, retweet count, reply count, quote count, bookmark count, view count, media attachments, author info, and creation timestamp. Any handle in the URL path is ignored: X serves a status by its numeric id, so the author reported here is the one the platform returns, which can differ from the handle you sent.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["twitter"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "twitter",
@@ -2766,6 +3152,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns information about a Twitter/X community: the name, description, member count (as `author.followers`), creation date, and the community rules under `author.ext.rules`, each with its name and description. `author.ext.creator_username`, `author.ext.join_policy` and `author.ext.is_nsfw` carry the rest. A community is not a user account, so the leaves that only make sense for one stay null: `verified`, `private`, `following`, `posts_count` and `likes_count`.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["twitter"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "twitter",
@@ -2785,6 +3173,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the most recent tweets posted inside a Twitter/X community, each with the full text, like count, retweet count, reply count, media attachments, author info, and creation timestamp. Long-form posts return their complete body rather than the 280-character clamp, and t.co links in the text are resolved to their destinations. This is a fixed window of around 16 to 20 recent posts: the source exposes no cursor, so there is no way to page further back, and a request carrying `cursor` is rejected before it costs a credit.",
     singlePage: "The source returns one fixed window of recent community posts with no cursor anywhere in the response (verified 04/09/2026).",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["twitter"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "twitter",
@@ -2803,6 +3193,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the spoken words from a video attached to a tweet, auto-generated captions included. Costs 10 credits per call, the most expensive endpoint on this platform: `twitter/tweet` returns the media attachment itself for 1 credit, and this returns what is said in it. A tweet with no video, or a video with no captions available, is a 404 and is not charged.",
     cache: { category: "immutable", ttlSeconds: 2592000 },
+    tags: ["twitter"],
   },
   {
     platform: "twitter",
@@ -2826,6 +3217,12 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Natural-language search over X (Twitter) powered by xAI's Grok 4.3 model with the built-in x_search tool. Returns a synthesised answer plus X source citations. Pin results to specific authors via from_handles (or exclude with exclude_handles), and narrow to a time window with from_date / to_date. Costs 5 credits per call regardless of how many internal x_search invocations the model performs (see tool_calls_count in the response for visibility). Auto-refunds on upstream failure. Best for freeform questions like 'what is @elonmusk saying about xAI this week' that would otherwise require multiple structured calls to /v1/twitter/profile, /v1/twitter/user/tweets, etc. **Read a thin answer as thin retrieval, never as an empty corpus.** This is a discovery surface: the model runs a handful of internal searches and answers from what they returned, so a reply such as 'limited posts appear on this topic' is a statement about that retrieval, not about X. Keyword search over the same window routinely finds substantially more. Expect 18 to 20 seconds per call, which makes it a poor fit for tight iteration loops.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["twitter"],
+    responseFields: {
+      "answer": "Grok's synthesised natural-language reply summarising the X posts it surfaced.",
+      "sources": "Array of X (Twitter) source citations the model used to build the answer. Each entry is { url, title? }.",
+      "tool_calls_count": "Number of times Grok invoked the x_search tool during reasoning. Higher counts indicate the model did more digging: useful as a cost / depth signal.",
+    },
   },
   {
     platform: "twitter",
@@ -2848,6 +3245,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches X (Twitter) for tweets matching a keyword or phrase, each result with the full text, like count, retweet count, reply count, bookmark count, view count, media attachments, author info, and creation timestamp. Long-form posts return their complete body, not the 280-character clamp. t.co links in the text are resolved to their destinations. A post carrying more than one photo lists every URL in `post.ext.all_media_urls`, while `post.content.media_urls` holds the first; `post.ext.quote_count` is how many times the post was quote-tweeted. There are NO date parameters on this endpoint: the whole filter surface is X search operators inside `query`, which is where `since:`/`until:` (YYYY-MM-DD) belong, alongside `from:handle`, quoted exact phrases, `filter:images`, and `filter:videos`. `sort` picks the ranking: `latest` (the default) returns the newest matches first, `top` returns the most POPULAR ones, which on an unquoted multi-term query means engagement-ranked rather than relevance-ranked, so `meltwater expensive contract` can return high-engagement posts about none of those things. Quote the phrase, or pin the topic with an operator such as `min_faves:20`, when you need precision from `top`. Page size is set by the source, typically around 20 tweets. To go deeper, send `pagination.next_cursor` back as `cursor` and repeat until `pagination.has_more` is false; each page costs 1 credit.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["twitter"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "twitter",
@@ -2869,6 +3268,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the replies to a specific tweet, each with the reply text, author info, like count, reply count, and creation timestamp. The tweet itself is not included in the list, and a tweet with no replies returns an empty list. Page size is set by the source. Deeper threads are a cursor walk: send `pagination.next_cursor` back as `cursor` and repeat until `pagination.has_more` is false; each page costs 1 credit.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["twitter"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "twitter",
@@ -2890,6 +3291,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the tweets on a Twitter/X account's Media tab: only the tweets carrying a photo or video. Each tweet includes the full text, media attachment URLs, like count, retweet count, reply count, author info, and creation timestamp; view count, bookmark count, author verification and the pinned flag are not available on this surface and return null, so use `user/tweets` when you need those. Every photo on a multi-photo tweet is listed in `post.ext.all_media_urls`, and `post.ext.quote_count` is how many times the post was quote-tweeted. Page size is set by the source, typically around 15 tweets. Deeper history is a cursor walk: send `pagination.next_cursor` back as `cursor` and repeat until `pagination.has_more` is false; each page costs 1 credit.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["twitter"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "twitter",
@@ -2911,6 +3314,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the accounts following a Twitter/X user. Each follower includes the username, display name, bio, avatar, follower and following counts, tweet count, account privacy flag, and join date; verification status is not available on this surface and returns null. Page size is set by the source, typically around 70 accounts. To go deeper, send `pagination.next_cursor` back as `cursor` and repeat until `pagination.has_more` is false; each page costs 1 credit.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["twitter"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "twitter",
@@ -2932,6 +3337,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the accounts a Twitter/X user follows. Each account includes the username, display name, bio, avatar, follower and following counts, tweet count, account privacy flag, and join date; verification status is not available on this surface and returns null. Page size is set by the source. To go deeper, send `pagination.next_cursor` back as `cursor` and repeat until `pagination.has_more` is false; each page costs 1 credit.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["twitter"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "twitter",
@@ -2953,15 +3360,19 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the accounts that retweeted a specific tweet. Each account includes the username, display name, bio, avatar, follower and following counts, tweet count, account privacy flag, and join date; verification status is not available on this surface and returns null. Page size is set by the source. To go deeper, send `pagination.next_cursor` back as `cursor` and repeat until `pagination.has_more` is false; each page costs 1 credit.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["twitter"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "twitter",
     resource: "search/users",
     method: "GET",
     params: [
-      { name: "query", required: true, description: "Name, handle, or partial handle to search accounts for", example: "news24" },
+      { name: "query", required: true, description: "Name, handle, or keyword to search accounts for", example: "news24" },
     ],
-    optionalParams: [],
+    optionalParams: [
+      { name: "cursor", type: "string", description: "Cursor from the previous response's pagination.next_cursor to fetch the next page" },
+    ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
@@ -2969,9 +3380,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "AuthorList",
     summary: "Search Twitter users",
     description:
-      "Searches X (Twitter) for user accounts matching a name, handle, or partial handle. Each match includes the username, display name, avatar, location, verification status, and whether the account is private. Matching is prefix based on the handle and display name with no spelling correction, so a misspelled handle surfaces lookalike accounts; verify the returned handle before relying on it. Returns a single fixed set of up to about 10 accounts with no further pages; refine the query to surface different accounts.",
-    singlePage: "Typeahead search: the source returns one fixed set of up to about 10 accounts per query, with no cursor anywhere in the response (verified 28/08/2026).",
+      "Searches X (Twitter) for user accounts matching a name, handle, or keyword. Each match includes the username, display name, bio, avatar, follower and following counts, tweet count, location, verification status, join date, and whether the account is private. Matching covers handle and display-name tokens with no spelling correction, so a misspelled handle surfaces lookalike and parody accounts rather than the real one; verify the returned handle before relying on it. Page size is set by the source, typically around 20 accounts. To go deeper, send `pagination.next_cursor` back as `cursor` and repeat until `pagination.has_more` is false; each page costs 1 credit.",
+    pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["twitter"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "twitter",
@@ -2979,10 +3392,10 @@ export const ENDPOINTS: Endpoint[] = [
     method: "GET",
     params: [],
     optionalParams: [
-      { name: "handle", type: "string", example: "mrbeast" },
-      { name: "posts", type: "integer", description: "How many recent posts to fetch + average the computed metrics over (1-100, default 25).", example: "25" },
-      { name: "cursor", type: "string", description: "Pass a prior response's posts_cursor to deepen the post window." },
-      { name: "include", type: "string", description: "CSV subset of posts,computed (default both). include=computed drops the raw posts[] to save payload." },
+      { name: "handle", type: "string", description: "X (Twitter) username or handle, with or without a leading @. One of the identity params is required.", example: "mrbeast" },
+      { name: "posts", type: "integer", description: "How many of the fetched recent posts to return and compute the metrics over (1-100, default 25). One call reads one page, which on X (Twitter) is about 10 to 20 tweets (a page of about 20, less the replies to other accounts), so a larger value returns that page and a `_warnings` note; pass posts_cursor back as cursor for the next page.", example: "25" },
+      { name: "cursor", type: "string", description: "Pass a prior response's posts_cursor to read the next page of posts. Each call is a separate 5-credit call whose metrics cover that page only." },
+      { name: "include", type: "string", description: "CSV subset of posts,computed (default both). include=computed omits the raw posts[] array from the response to save payload. The metrics are computed from the same fetched posts either way, so they do not change." },
     ],
     oneOfGroups: [["handle"]],
     creditTier: "standard",
@@ -2991,11 +3404,13 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "X (Twitter) profile, recent posts, and computed analytics in one call.",
     description:
-      "Fans out to the X (Twitter) profile and recent-posts endpoints in parallel and returns the unified author, the recent-post list, and computed metrics: average engagement rate, posting cadence (with the window it was measured over), the top post, and the format mix. The profile leg is the only critical leg: if posts can't be fetched the call still returns the profile with post-dependent metrics null, and every leg's status is surfaced in legs[]. Flat 5 credits.",
+      "Fans out to the X (Twitter) profile and recent-posts endpoints in parallel and returns the unified author, the recent-post list, and computed metrics: avg_engagement_rate, avg_engagement_rate_by_followers, posting cadence (with the window it was measured over), the top post, and the format mix. avg_engagement_rate is view-based: the mean of each post's (likes + comments + shares) / views, so only posts that carry a view count contribute, and it is null when none does. avg_engagement_rate_by_followers is the mean of likes + comments per post divided by the account's follower count, over every post that carries both, so it covers posts with no view count. One call reads one page of recent posts, which on X (Twitter) is about 10 to 20 tweets (a page of about 20, less the replies to other accounts), and computes the metrics over that page: `posts` can shorten the window but not lengthen it past one page, and `_warnings` says so when fewer posts came back than `posts` asked for. Pass `posts_cursor` back as `cursor` to read the next page, 5 credits a call. The profile leg is the only critical leg: if posts can't be fetched the call still returns the profile with post-dependent metrics null, and every leg's status is surfaced in legs[]. Flat 5 credits.",
     execution: "sync",
     pagination: { style: "cursor", nativeParam: "cursor" },
+    paginatable: true,
     cache: { category: "profile", ttlSeconds: 900 },
     family: "prism",
+    tags: ["twitter", "prism"],
   },
   // --- linkedin (45 endpoints) ---
   {
@@ -3013,8 +3428,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Author",
     summary: "Get LinkedIn user profile",
     description:
-      "Returns public profile information for a LinkedIn user including name, headline, summary, location, current company, education, skills, and profile picture URL.",
+      "Returns a LinkedIn member's public profile as a canonical Author: `display_name`, `username` (the vanity slug), `bio` (the headline), `location`, `avatar_url`, `url`, exact `followers` and `following` (connections), and `joined_at` (the account creation date). `author.ext` carries the member `urn` (the join key for every `/v1/linkedin/profile/*` sub-resource), `member_id`, `website`, `country`, the cover image, and the status flags (`is_premium`, `is_top_voice`, `is_creator`, `is_influencer`, `is_open_to_work`, `is_hiring`). The About summary, experience, education and skills are NOT on this lane: LinkedIn serves them as separate sub-resources, so use `/v1/linkedin/profile/experiences`, `/educations` and `/skills` (5 credits each). `verified` is null: the source does not expose it.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "linkedin",
@@ -3033,13 +3450,15 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns public information about a LinkedIn company page. Canonical fields carry the identity and reach: `author.id` (the numeric company_id the other `/company/*` endpoints take), `username`, `display_name`, `bio` (the company description), `avatar_url` (logo), `followers`, `location` (flattened HQ), and `verified`. The complete **About tab** rides in `author.ext`: `website`, `employee_count` and `employee_count_range`, `founded_year`, `specialities[]`, `industries[]`, `headquarters` (structured `{country, city, geographic_area, line1, line2, postal_code}`), `locations[]` (every office LinkedIn lists, with lat/long), `hashtags[]`, `cover_url`, and `page_active`. Fields a page has not filled in come back null rather than omitted, so `founded_year` is null on a company that never set a founding date. `funding` is mapped too, but LinkedIn returned an empty funding block for every company measured on 2026-08-11, so do not depend on it.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "linkedin",
     resource: "post",
     method: "GET",
     params: [
-      { name: "url", required: true, description: "Full URL of the LinkedIn post", example: "https://www.linkedin.com/feed/update/urn:li:activity:7501466755261820928" },
+      { name: "url", required: true, description: "Full URL of the LinkedIn post. It has to carry the post's ACTIVITY id, either `https://www.linkedin.com/feed/update/urn:li:activity:<id>` or `https://www.linkedin.com/posts/<slug>-activity-<id>-<code>`. A `urn:li:share:` or `urn:li:ugcPost:` URL names a different id for the same post and is rejected with a 400 before any credits are charged, because it cannot be resolved to the post. Every endpoint that lists posts publishes the activity form as `post.url`, so copy that field rather than rebuilding the URL from `post.id`, which is not always the activity id.", example: "https://www.linkedin.com/feed/update/urn:li:activity:7501466755261820928" },
     ],
     optionalParams: [],
     oneOfGroups: [],
@@ -3049,8 +3468,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Post",
     summary: "Get LinkedIn post details",
     description:
-      "Returns detailed information about a specific LinkedIn post including the post text, like count, comment count, share count, author info, media attachments, and publish timestamp.",
+      "Returns detailed information about a specific LinkedIn post including the post text, like count, comment count, share count, author info, media attachments, and publish timestamp.\n\n**Which post URL to send.** A LinkedIn post can be addressed by three different ids, and this endpoint resolves the ACTIVITY one: `https://www.linkedin.com/feed/update/urn:li:activity:<id>`, or the share-button form `https://www.linkedin.com/posts/<slug>-activity-<id>-<code>`. A `urn:li:share:` or `urn:li:ugcPost:` URL is a different id for the same post and cannot be resolved here, so it is rejected with a 400 before any credits are charged. The reliable way to get a URL that works is to read `post.url` off any endpoint that lists posts (/v1/linkedin/profile/posts, /v1/linkedin/company/posts, /v1/linkedin/search/posts and the rest): that field is always the activity form. Do not rebuild the URL from `post.id`, which on some lanes is the share or ugcPost id rather than the activity id.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "linkedin",
@@ -3064,25 +3485,32 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "first_name", type: "string", description: "Filter by first name." },
       { name: "last_name", type: "string", description: "Filter by last name." },
       { name: "title", type: "string", description: "Filter by job title or headline." },
-      { name: "current_company", type: "string", description: "Filter by current company ID (comma-separated for multiple)." },
-      { name: "past_company", type: "string", description: "Filter by a previously-worked company ID." },
-      { name: "school", type: "string", description: "Filter by school ID." },
-      { name: "industry", type: "string", description: "Filter by industry ID." },
-      { name: "geocode_location", type: "string", description: "Filter by location geocode ID." },
+      { name: "current_company", type: "string", description: "Filter by current company, using a numeric company id from /v1/linkedin/company (`author.id`). Comma-separated for multiple.", example: "1035" },
+      { name: "past_company", type: "string", description: "Filter by a previously-worked company, using a numeric company id from /v1/linkedin/company (`author.id`).", example: "1035" },
+      { name: "school", type: "string", description: "Filter by school, using a school id from /v1/linkedin/search/schools (`id`).", example: "1792" },
+      { name: "industry", type: "string", description: "Filter by industry, using an industry id from /v1/linkedin/search/industry (`industry_id`).", example: "4" },
+      { name: "geocode_location", type: "string", description: "Filter by location, using a geocode id from /v1/linkedin/search/location (`geocode`).", example: "103644278" },
       { name: "profile_language", type: "string", description: "Filter by profile language (ISO 2-letter code, e.g. 'en')." },
-      { name: "service_category", type: "string", description: "Filter by service-category ID." },
-      { name: "follower_of", type: "string", description: "Return people who follow a specific member URN." },
+      { name: "service_category", type: "string", description: "Filter by service category, using a numeric service-category id. No endpoint resolves these, so pass one you already hold.", example: "1" },
+      { name: "follower_of", type: "string", description: "Return people who follow a specific member, using the member's URN from /v1/linkedin/profile (`author.ext.urn`). This one is a URN and not a numeric id.", example: "ACoAAA8BYqEBCGLg_vT_ca6mMEqkpp9nVffJ3hc" },
+      { name: "include", type: "enum", enumValues: ["profile"], description: "Set to `profile` (one token only) to join every row to the member's profile lookup in this one call: `author.followers` becomes the exact count and `author.ext.followers_approximate` reads false on every row the lookup filled, `author.following` is filled with the member's connection count, and the location, joined date, country, website, cover image and profile flags land where the row lacks them. Holds 4 credits per row and keeps only the rows filled from a fresh lookup; rows already in cache and rows that could not be filled are refunded, so a call costs at most 50 (10 + 4 per row) and the usual bill is lower. Adds about 1 second for 10 rows, up to 3 on a slow second and never more than 8, and nothing when the members are already cached; read `data.hydration` for the rows, the credits held and kept, and the time." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 10, description: "Take the top N rows of this page (1 to 10). With `include=profile` it caps both the rows joined and the extra credits: `limit=3&include=profile` costs at most 22. The page cursor still advances past the full page of 10, so the rows past your limit are skipped, not carried to the next page. Without `include=profile` the call stays 10 credits." },
     ],
     oneOfGroups: [],
     creditTier: "premium",
     creditCost: 10,
-    pricing: { cost: 10, tier: "premium", ladderCost: 10, model: "ladder" },
+    pricing: { cost: 10, tier: "premium", ladderCost: 10, model: "metered", minCost: 10, maxCost: 50, description: "10 credits for the list. include=profile holds 4 credits per row and keeps only the rows filled from a fresh lookup: at most 50 for the 10-row page, or 10 + 4 x limit when you pass `limit`. Rows served from cache are free, unfilled rows are refunded, and a repeat of a fully joined page within the list's cache window costs 0. The list is cached for 2 minutes and each profile lookup for 15 minutes." },
     archetype: "AuthorList",
     summary: "Search LinkedIn people",
     description:
-      "Searches LinkedIn members by name and B2B filters (title, current/past company, school, industry, location, language). Returns a paginated list of matching profiles with handle, headline, location, follower count, and the member URN for follow-up enrichment calls.",
-    pagination: { style: "page", nativeParam: "page" },
+      "Searches LinkedIn members by name and B2B filters (title, current/past company, school, industry, location, language). Returns a paginated list of matching profiles with handle, headline, location, follower count, and the member URN for follow-up enrichment calls. Each page is 10 members. On a plain call `author.followers` is LinkedIn's rounded display bucket, and only on the rows that show one (flagged `author.ext.followers_approximate: true`), and `author.following` is null on every row. Send `include=profile` and every row is joined, in the same call, to the member's profile lookup (`/v1/linkedin/profile`): `author.followers` becomes the exact follower count and `author.ext.followers_approximate` reads false on every row the lookup filled, whether the row arrived with LinkedIn's rounded bucket or with no count at all, `author.following` is filled with the member's connection count (on LinkedIn a member's `following` is the number of connections), and the location, the joined date (`author.joined_at`), and the country, website, cover image and profile flags on `author.ext` land where the row lacks them. Cost: 10 credits for the list; include=profile holds 4 credits per row and keeps only the rows filled from a fresh lookup, so a call costs at most 50; rows already in cache are free and unfilled rows are refunded. Pass `limit` (1 to 10) to join only the top rows: `limit=3&include=profile` costs at most 22. Time: the lookups run in parallel, about 1 second for 10 rows, up to 3 on a slow second, and never more than 8 seconds. The response carries a `hydration` block itemising rows, lookups, cache hits, credits and milliseconds.",
+    pagination: { style: "page", nativeParam: "page", limitParam: "limit" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
+    hydration: [
+      { param: "include", token: "profile", sibling: "linkedin/profile", fills: ["author.followers", "author.following", "author.location", "author.joined_at", "author.ext.country", "author.ext.member_id", "author.ext.website", "author.ext.cover_url", "author.ext.is_creator", "author.ext.is_influencer", "author.ext.is_open_to_work", "author.ext.is_hiring", "author.ext.is_top_voice", "author.ext.is_premium"], creditsPerItem: 4, maxItems: 10, rowLimitParam: "limit", replaceApproximate: ["author.followers"], cacheSibling: true, warnings: { unavailable: "profile_unavailable", partial: "profile_partial" } },
+    ],
   },
   {
     platform: "linkedin",
@@ -3093,24 +3521,31 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     optionalParams: [
       { name: "page", type: "integer", minimum: 1, description: "Page number for pagination (default 1)." },
+      { name: "include", type: "enum", enumValues: ["profile"], description: "Set to `profile` (one token only) to join every row to the member's profile lookup in this one call: `author.followers` becomes the exact count and `author.ext.followers_approximate` reads false on every row the lookup filled, `author.following` is filled with the member's connection count, and the location, joined date, country, website, cover image and profile flags land where the row lacks them. Holds 4 credits per row and keeps only the rows filled from a fresh lookup; rows already in cache and rows that could not be filled are refunded, so a call costs at most 50 (10 + 4 per row) and the usual bill is lower. Adds about 1 second for 10 rows, up to 3 on a slow second and never more than 8, and nothing when the members are already cached; read `data.hydration` for the rows, the credits held and kept, and the time." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 10, description: "Take the top N rows of this page (1 to 10). With `include=profile` it caps both the rows joined and the extra credits: `limit=3&include=profile` costs at most 22. The page cursor still advances past the full page of 10, so the rows past your limit are skipped, not carried to the next page. Without `include=profile` the call stays 10 credits." },
     ],
     oneOfGroups: [],
     creditTier: "premium",
     creditCost: 10,
-    pricing: { cost: 10, tier: "premium", ladderCost: 10, model: "ladder" },
+    pricing: { cost: 10, tier: "premium", ladderCost: 10, model: "metered", minCost: 10, maxCost: 50, description: "10 credits for the list. include=profile holds 4 credits per row and keeps only the rows filled from a fresh lookup: at most 50 for the 10-row page, or 10 + 4 x limit when you pass `limit`. Rows served from cache are free, unfilled rows are refunded, and a repeat of a fully joined page within the list's cache window costs 0. The list is cached for 15 minutes and each profile lookup for 15 minutes." },
     archetype: "AuthorList",
     summary: "List people at a LinkedIn company",
     description:
-      "Returns a paginated list of members who work at a company, with handle, headline, location, and member URN. Get the company_id from /v1/linkedin/company.",
-    pagination: { style: "page", nativeParam: "page" },
+      "Returns a paginated list of members who work at a company, with handle, headline, location, and member URN. Get the company_id from /v1/linkedin/company. Each page is 10 members. On a plain call `author.followers` is LinkedIn's rounded display bucket, and only on the rows that show one (flagged `author.ext.followers_approximate: true`), and `author.following` is null on every row. Send `include=profile` and every row is joined, in the same call, to the member's profile lookup (`/v1/linkedin/profile`): `author.followers` becomes the exact follower count and `author.ext.followers_approximate` reads false on every row the lookup filled, whether the row arrived with LinkedIn's rounded bucket or with no count at all, `author.following` is filled with the member's connection count (on LinkedIn a member's `following` is the number of connections), and the location, the joined date (`author.joined_at`), and the country, website, cover image and profile flags on `author.ext` land where the row lacks them. Cost: 10 credits for the list; include=profile holds 4 credits per row and keeps only the rows filled from a fresh lookup, so a call costs at most 50; rows already in cache are free and unfilled rows are refunded. Pass `limit` (1 to 10) to join only the top rows: `limit=3&include=profile` costs at most 22. Time: the lookups run in parallel, about 1 second for 10 rows, up to 3 on a slow second, and never more than 8 seconds. The response carries a `hydration` block itemising rows, lookups, cache hits, credits and milliseconds.",
+    pagination: { style: "page", nativeParam: "page", limitParam: "limit" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
+    hydration: [
+      { param: "include", token: "profile", sibling: "linkedin/profile", fills: ["author.followers", "author.following", "author.location", "author.joined_at", "author.ext.country", "author.ext.member_id", "author.ext.website", "author.ext.cover_url", "author.ext.is_creator", "author.ext.is_influencer", "author.ext.is_open_to_work", "author.ext.is_hiring", "author.ext.is_top_voice", "author.ext.is_premium"], creditsPerItem: 4, maxItems: 10, rowLimitParam: "limit", replaceApproximate: ["author.followers"], cacheSibling: true, warnings: { unavailable: "profile_unavailable", partial: "profile_partial" } },
+    ],
   },
   {
     platform: "linkedin",
     resource: "post/comments",
     method: "GET",
     params: [
-      { name: "url", required: true, description: "Full URL of the LinkedIn post (or its activity id).", example: "https://www.linkedin.com/feed/update/urn:li:activity:7244804629786419202" },
+      { name: "url", required: true, description: "Full URL of the LinkedIn post. It has to carry the post's ACTIVITY id, either `https://www.linkedin.com/feed/update/urn:li:activity:<id>` or `https://www.linkedin.com/posts/<slug>-activity-<id>-<code>`. A `urn:li:share:` or `urn:li:ugcPost:` URL names a different id for the same post and is rejected with a 400 before any credits are charged, because it cannot be resolved to the post. Every endpoint that lists posts publishes the activity form as `post.url`, so copy that field rather than rebuilding the URL from `post.id`, which is not always the activity id.", example: "https://www.linkedin.com/feed/update/urn:li:activity:7244804629786419202" },
     ],
     optionalParams: [
       { name: "page", type: "integer", minimum: 1, description: "Page number for pagination (default 1)." },
@@ -3127,6 +3562,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a paginated list of comments on a LinkedIn post, with commenter identity, text, reaction breakdown, pin/edit flags, and reply counts.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "linkedin",
@@ -3149,6 +3586,8 @@ export const ENDPOINTS: Endpoint[] = [
       "List a LinkedIn member's recent posts, normalised to the SocialCrawl schema. The upstream serves this feed as ONE fixed window and has no working continuation token, so the response is always terminal (`pagination.has_more` is `false` and `next_cursor` is `null`) and a `cursor` is rejected rather than silently re-serving the first page. Use `limit` to control depth: it defaults to 20 and accepts up to 100, the provider's hard ceiling, at the same credit cost. A feed shorter than the requested `limit` simply returns everything the member has posted.\n\n**Older than the most recent 100.** Read the row count first: if this endpoint returns fewer posts than your `limit`, that is the member's entire history and there is nothing further back to fetch. If it returns exactly 100 the feed is truncated, and the way past it is /v1/linkedin/search/posts with `from_member` set to the member's urn (`author.ext.urn` on /v1/linkedin/profile) and no `query`. That endpoint pages with a real `next_cursor` that keeps advancing, and on a prolific member it reaches months further back than this one. It reads a best-effort search index rather than the member's feed, so it is the deeper source only for members this endpoint truncates. **It is not a complete archive**: how deep it goes is a property of the index and varies by member, from a couple of hundred posts to a few hundred, so walk it to find out and do not design around a fixed number.",
     singlePage: "The upstream serves this feed as one fixed window with no working continuation token (re-verified against the provider 04/09/2026); use `limit` (up to 100, the provider's hard ceiling) to control how much of it you get in the one call.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "linkedin",
@@ -3170,13 +3609,15 @@ export const ENDPOINTS: Endpoint[] = [
       "List posts a LinkedIn member reacted to, normalised to the SocialCrawl schema.",
     singlePage: "The upstream serves this feed as one fixed window: it ignores both `page` and its own continuation token and re-serves the first page forever (re-verified against the provider 04/09/2026), so there is no second page to fetch.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "linkedin",
     resource: "post/reposts",
     method: "GET",
     params: [
-      { name: "url", required: true, description: "Full URL of the LinkedIn profile, company, or post.", example: "https://www.linkedin.com/feed/update/urn:li:activity:7501466755261820928" },
+      { name: "url", required: true, description: "Full URL of the LinkedIn post. It has to carry the post's ACTIVITY id, either `https://www.linkedin.com/feed/update/urn:li:activity:<id>` or `https://www.linkedin.com/posts/<slug>-activity-<id>-<code>`. A `urn:li:share:` or `urn:li:ugcPost:` URL names a different id for the same post and is rejected with a 400 before any credits are charged, because it cannot be resolved to the post. Every endpoint that lists posts publishes the activity form as `post.url`, so copy that field rather than rebuilding the URL from `post.id`, which is not always the activity id.", example: "https://www.linkedin.com/feed/update/urn:li:activity:7501466755261820928" },
     ],
     optionalParams: [
       { name: "cursor", type: "string", description: "LinkedIn cursor." },
@@ -3189,9 +3630,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "PostList",
     summary: "List reposts of a LinkedIn post",
     description:
-      "List reposts of a LinkedIn post, normalised to the SocialCrawl schema.",
+      "Lists the members and companies that reshared a LinkedIn post. Each row is one reshare: `post.author` is who reshared it, `post.id` and `post.url` identify the reshare itself, and `post.ext.is_repost_quote` says whether commentary was added. Two leaves come from the ORIGINAL post, because LinkedIn shows them that way on a reshare: `post.engagement` and `post.ext.reaction_counts` are the original post's totals, not the reshare's. `content.text` and `published_at` are not exposed on this surface and are null. Pagination is by `cursor`; the provider can re-serve the first page on page 2 for a post with few reshares.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "linkedin",
@@ -3213,6 +3656,8 @@ export const ENDPOINTS: Endpoint[] = [
       "List posts in a LinkedIn group, normalised to the SocialCrawl schema.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "linkedin",
@@ -3232,13 +3677,15 @@ export const ENDPOINTS: Endpoint[] = [
       "List a company's affiliated/showcase pages, normalised to the SocialCrawl schema.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "linkedin",
     resource: "post/comments/replies",
     method: "GET",
     params: [
-      { name: "url", required: true, description: "Full URL of the LinkedIn profile, company, or post.", example: "https://www.linkedin.com/feed/update/urn:li:activity:7501466755261820928" },
+      { name: "url", required: true, description: "Full URL of the LinkedIn post. It has to carry the post's ACTIVITY id, either `https://www.linkedin.com/feed/update/urn:li:activity:<id>` or `https://www.linkedin.com/posts/<slug>-activity-<id>-<code>`. A `urn:li:share:` or `urn:li:ugcPost:` URL names a different id for the same post and is rejected with a 400 before any credits are charged, because it cannot be resolved to the post. Every endpoint that lists posts publishes the activity form as `post.url`, so copy that field rather than rebuilding the URL from `post.id`, which is not always the activity id.", example: "https://www.linkedin.com/feed/update/urn:li:activity:7501466755261820928" },
       { name: "comment_id", required: true, description: "LinkedIn comment ID (from /post/comments).", example: "7501480403283886080" },
     ],
     optionalParams: [
@@ -3254,6 +3701,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Lists the replies under one LinkedIn comment. **You must pass `cursor`**: LinkedIn only serves a reply thread against its own continuation token, so a call without one returns an empty list (and costs nothing). Get the token from the parent comment on /v1/linkedin/post/comments, where it is published as `comment.ext.previous_replies_token`, and pass it as `cursor` here. Only comments that actually have replies carry a token, so its presence on the parent row is itself the signal that there is a thread to fetch.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "linkedin",
@@ -3276,6 +3725,8 @@ export const ENDPOINTS: Endpoint[] = [
       "List a member's work experiences, normalised to the SocialCrawl schema.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "linkedin",
@@ -3298,6 +3749,8 @@ export const ENDPOINTS: Endpoint[] = [
       "List a member's education history, normalised to the SocialCrawl schema.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "linkedin",
@@ -3320,6 +3773,8 @@ export const ENDPOINTS: Endpoint[] = [
       "List a member's skills, normalised to the SocialCrawl schema.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "linkedin",
@@ -3342,6 +3797,8 @@ export const ENDPOINTS: Endpoint[] = [
       "List a member's honors and awards, normalised to the SocialCrawl schema.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "linkedin",
@@ -3364,6 +3821,8 @@ export const ENDPOINTS: Endpoint[] = [
       "List a member's licenses and certifications, normalised to the SocialCrawl schema.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "linkedin",
@@ -3386,6 +3845,8 @@ export const ENDPOINTS: Endpoint[] = [
       "List a member's publications, normalised to the SocialCrawl schema.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "linkedin",
@@ -3408,6 +3869,8 @@ export const ENDPOINTS: Endpoint[] = [
       "List a member's volunteer experiences, normalised to the SocialCrawl schema.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "linkedin",
@@ -3431,6 +3894,8 @@ export const ENDPOINTS: Endpoint[] = [
       "List recommendations for a member, normalised to the SocialCrawl schema.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "linkedin",
@@ -3453,6 +3918,8 @@ export const ENDPOINTS: Endpoint[] = [
       "List companies a member follows, normalised to the SocialCrawl schema.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "linkedin",
@@ -3475,6 +3942,8 @@ export const ENDPOINTS: Endpoint[] = [
       "List groups a member follows, normalised to the SocialCrawl schema.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "linkedin",
@@ -3496,6 +3965,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Lists the image posts on a LinkedIn member's profile, normalised to the same Post shape as every other SocialCrawl post lane: `post.id`, `post.url`, `post.content.media_urls` (the highest-resolution image LinkedIn publishes), `post.author` and `post.published_at`. LinkedIn does not expose the caption on this surface, so `content.text` is null; fetch the post by URL for the full record. `published_at` is derived from LinkedIn's own relative label, so `post.ext.published_at_precision` tells you whether it is good to the hour, the day, the week or the month.",
     singlePage: "The upstream serves this feed as one fixed window: it ignores both `page` and its own continuation token and re-serves the first page forever (re-verified against the provider 04/09/2026), so there is no second page to fetch.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "linkedin",
@@ -3517,6 +3988,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Lists the video posts on a LinkedIn member's profile, normalised to the same Post shape as every other SocialCrawl post lane: `post.id`, `post.url`, `post.content.thumbnail_url`, `post.content.duration_seconds`, the reaction and comment counts on `post.engagement`, and the per-reaction-type breakdown on `post.ext.reaction_counts`. LinkedIn does not expose the caption on this surface, so `content.text` is null; fetch the post by URL for the full record. `published_at` is derived from LinkedIn's own relative label, so `post.ext.published_at_precision` tells you whether it is good to the hour, the day, the week or the month.",
     singlePage: "The upstream serves this feed as one fixed window: it ignores both `page` and its own continuation token and re-serves the first page forever (re-verified against the provider 04/09/2026), so there is no second page to fetch.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "linkedin",
@@ -3538,28 +4011,37 @@ export const ENDPOINTS: Endpoint[] = [
       "List a member's comments, normalised to the SocialCrawl schema.",
     singlePage: "The upstream serves this feed as one fixed window: it ignores both `page` and its own continuation token and re-serves the first page forever (re-verified against the provider 04/09/2026), so there is no second page to fetch.",
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "linkedin",
     resource: "post/reactions",
     method: "GET",
     params: [
-      { name: "url", required: true, description: "Full URL of the LinkedIn profile, company, or post.", example: "https://www.linkedin.com/feed/update/urn:li:activity:7501466755261820928" },
+      { name: "url", required: true, description: "Full URL of the LinkedIn post. It has to carry the post's ACTIVITY id, either `https://www.linkedin.com/feed/update/urn:li:activity:<id>` or `https://www.linkedin.com/posts/<slug>-activity-<id>-<code>`. A `urn:li:share:` or `urn:li:ugcPost:` URL names a different id for the same post and is rejected with a 400 before any credits are charged, because it cannot be resolved to the post. Every endpoint that lists posts publishes the activity form as `post.url`, so copy that field rather than rebuilding the URL from `post.id`, which is not always the activity id.", example: "https://www.linkedin.com/feed/update/urn:li:activity:7501466755261820928" },
     ],
     optionalParams: [
       { name: "page", type: "integer", minimum: 1, description: "1-based page number. Defaults to 1." },
       { name: "type", type: "enum", enumValues: ["all", "like", "praise", "empathy", "appreciation", "interest"], description: "Filter by kind. See the allowed values." },
+      { name: "include", type: "enum", enumValues: ["profile"], description: "Set to `profile` (one token only) to join every row to the member's profile lookup in this one call: `author.followers` becomes the exact count and `author.ext.followers_approximate` reads false on every row the lookup filled, `author.following` is filled with the member's connection count, and the location, joined date, country, website, cover image and profile flags land where the row lacks them. Holds 4 credits per row and keeps only the rows filled from a fresh lookup; rows already in cache and rows that could not be filled are refunded, so a call costs at most 50 (10 + 4 per row) and the usual bill is lower. Adds about 1 second for 10 rows, up to 3 on a slow second and never more than 8, and nothing when the members are already cached; read `data.hydration` for the rows, the credits held and kept, and the time." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 10, description: "Take the top N rows of this page (1 to 10). With `include=profile` it caps both the rows joined and the extra credits: `limit=3&include=profile` costs at most 22. The page cursor still advances past the full page of 10, so the rows past your limit are skipped, not carried to the next page. Without `include=profile` the call stays 10 credits." },
     ],
     oneOfGroups: [],
     creditTier: "premium",
     creditCost: 10,
-    pricing: { cost: 10, tier: "premium", ladderCost: 10, model: "ladder" },
-    archetype: "SearchResult",
+    pricing: { cost: 10, tier: "premium", ladderCost: 10, model: "metered", minCost: 10, maxCost: 50, description: "10 credits for the list. include=profile holds 4 credits per row and keeps only the rows filled from a fresh lookup: at most 50 for the 10-row page, or 10 + 4 x limit when you pass `limit`. Rows served from cache are free, unfilled rows are refunded, and a repeat of a fully joined page within the list's cache window costs 0. The list is cached for 5 minutes and each profile lookup for 15 minutes." },
+    archetype: "AuthorList",
     summary: "List reactors on a LinkedIn post",
     description:
-      "List reactors on a LinkedIn post, normalised to the SocialCrawl schema.",
-    pagination: { style: "page", nativeParam: "page" },
+      "Lists the members who reacted to a LinkedIn post as a canonical AuthorList: name, headline, profile URL, avatar and member URN (`author.ext.urn`), with the reaction they left on `author.ext.reaction_type` (filter it with `type`). Each page is 10 reactors; page through with `page`. On a plain call a reactor row carries no follower count, connection count or location: `author.followers` and `author.following` are null on every row. Send `include=profile` and every row is joined, in the same call, to the member's profile lookup (`/v1/linkedin/profile`): `author.followers` becomes the exact follower count and `author.ext.followers_approximate` reads false on every row the lookup filled, whether the row arrived with LinkedIn's rounded bucket or with no count at all, `author.following` is filled with the member's connection count (on LinkedIn a member's `following` is the number of connections), and the location, the joined date (`author.joined_at`), and the country, website, cover image and profile flags on `author.ext` land where the row lacks them. Cost: 10 credits for the list; include=profile holds 4 credits per row and keeps only the rows filled from a fresh lookup, so a call costs at most 50; rows already in cache are free and unfilled rows are refunded. Pass `limit` (1 to 10) to join only the top rows: `limit=3&include=profile` costs at most 22. Time: the lookups run in parallel, about 1 second for 10 rows, up to 3 on a slow second, and never more than 8 seconds. The response carries a `hydration` block itemising rows, lookups, cache hits, credits and milliseconds.",
+    pagination: { style: "page", nativeParam: "page", limitParam: "limit" },
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
+    hydration: [
+      { param: "include", token: "profile", sibling: "linkedin/profile", fills: ["author.followers", "author.following", "author.location", "author.joined_at", "author.ext.country", "author.ext.member_id", "author.ext.website", "author.ext.cover_url", "author.ext.is_creator", "author.ext.is_influencer", "author.ext.is_open_to_work", "author.ext.is_hiring", "author.ext.is_top_voice", "author.ext.is_premium"], creditsPerItem: 4, maxItems: 10, rowLimitParam: "limit", replaceApproximate: ["author.followers"], cacheSibling: true, warnings: { unavailable: "profile_unavailable", partial: "profile_partial" } },
+    ],
   },
   {
     platform: "linkedin",
@@ -3587,6 +4069,8 @@ export const ENDPOINTS: Endpoint[] = [
       "List a company's job postings, normalised to the SocialCrawl schema.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "job" },
   },
   {
     platform: "linkedin",
@@ -3603,9 +4087,9 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "remote", type: "enum", enumValues: ["onsite", "remote", "hybrid"], description: "Workplace type: onsite, remote, or hybrid." },
       { name: "easy_apply", type: "boolean", description: "When true, return only jobs that support LinkedIn Easy Apply." },
       { name: "sort_by", type: "enum", enumValues: ["recent", "relevant"], description: "Result ordering." },
-      { name: "company", type: "string", description: "Filter by company name." },
-      { name: "geocode", type: "string", description: "Filter by location, using a geocode id from /v1/linkedin/search/location." },
-      { name: "industry_ids", type: "string", description: "Comma-separated industry ids from /v1/linkedin/search/industry." },
+      { name: "company", type: "string", description: "Filter by company, using a numeric company id from /v1/linkedin/company (`author.id`).", example: "1035" },
+      { name: "geocode", type: "string", description: "Filter by location, using a geocode id from /v1/linkedin/search/location.", example: "103644278" },
+      { name: "industry_ids", type: "string", description: "Comma-separated industry ids from /v1/linkedin/search/industry.", example: "4" },
     ],
     oneOfGroups: [],
     creditTier: "premium",
@@ -3617,6 +4101,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Search LinkedIn jobs, normalised to the SocialCrawl schema.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "job" },
   },
   {
     platform: "linkedin",
@@ -3636,6 +4122,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Resolve a location to a LinkedIn geocode id, normalised to the SocialCrawl schema.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "linkedin",
@@ -3657,6 +4145,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Search LinkedIn schools, normalised to the SocialCrawl schema.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "linkedin",
@@ -3676,6 +4166,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Resolve an industry name to a LinkedIn industry id, normalised to the SocialCrawl schema.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "linkedin",
@@ -3694,8 +4186,9 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "Get a member's account freshness signals (NOT the profile About section)",
     description:
-      "Returns LinkedIn's account-freshness panel for a member: `joined` (the month the account was created) plus how recently the contact information and profile photo were updated. **This is not the member's About/summary section**: despite the resource name, no free-text profile summary is returned, and the upstream does not expose one. The closest public text LinkedIn publishes for a member is the headline, on `author.bio` from `/v1/linkedin/profile`. For a company's About tab, use `/v1/linkedin/company` (`author.ext`).",
+      "Returns LinkedIn's account-freshness panel for a member: `joined` (the month the account was created, as a label such as \"May 2013\") plus how recently the contact information and profile photo were updated. **This is not the member's About/summary section**: despite the resource name, no free-text profile summary is returned, and the upstream does not expose one. The closest public text LinkedIn publishes for a member is the headline, on `author.bio` from `/v1/linkedin/profile`. For a company's About tab, use `/v1/linkedin/company` (`author.ext`). The join date itself is already on `/v1/linkedin/profile` as `author.joined_at` (an exact date), so call this lane only for the two update-recency signals.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
   },
   {
     platform: "linkedin",
@@ -3712,8 +4205,9 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "Get a member's public contact info",
     description:
-      "Get a member's public contact info, normalised to the SocialCrawl schema.",
+      "Returns the contact panel a member has made public: `websites[]`, `phone_numbers[]`, `twitter[]`, `wechat`, `address`, plus `urn`, `public_identifier`, `first_name` and `last_name`. The primary website is also on `/v1/linkedin/profile` as `author.ext.website`; call this lane for the full list, the phone numbers, the X handles and the postal address, which only this surface exposes. Most members publish none of them, so empty arrays and nulls are the common answer.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
   },
   {
     platform: "linkedin",
@@ -3730,8 +4224,9 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "Get a member's follower + connection counts",
     description:
-      "Get a member's follower + connection counts, normalised to the SocialCrawl schema.",
+      "Returns `follower_count` and `connection_count` for a member and nothing else. `/v1/linkedin/profile` returns the same two numbers (`author.followers`, `author.following`) at the same credit cost together with the full profile, so prefer it; this lane exists for callers that want the two counters with no other fields in the response.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
   },
   {
     platform: "linkedin",
@@ -3748,8 +4243,9 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "Get a company's open job count",
     description:
-      "Get a company's open job count, normalised to the SocialCrawl schema.",
+      "Returns `total`, the number of jobs the company currently has open on LinkedIn. `/v1/linkedin/company/jobs` returns the same figure as `total` beside its first page of listings at twice the credit cost, so this is the cheaper call when only the count is needed. A company with no openings answers `total: 0` and is billed: the upstream cannot tell an unknown `company_id` from a company with nothing open.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["linkedin"],
   },
   {
     platform: "linkedin",
@@ -3766,8 +4262,9 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "Get aggregate insights about a company's members",
     description:
-      "Get aggregate insights about a company's members, normalised to the SocialCrawl schema.",
+      "Returns how a company's LinkedIn members break down, as `breakdowns[]`: one entry per dimension (`Locations`, `Connections`, `School`, `Current Function`, `Skill Explicit`, `Service categories`, `Field of Study`), each with `title` and `insights[]` of `{name, count}` pairs ordered by count. Counts are LinkedIn's member associations, not a payroll headcount; the exact headcount is `author.ext.employee_count` on `/v1/linkedin/company`.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["linkedin"],
   },
   {
     platform: "linkedin",
@@ -3786,6 +4283,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Get LinkedIn group details, normalised to the SocialCrawl schema.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkedin"],
   },
   {
     platform: "linkedin",
@@ -3806,6 +4304,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Get LinkedIn job details, normalised to the SocialCrawl schema.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.job" },
   },
   {
     platform: "linkedin",
@@ -3825,9 +4325,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "PostList",
     summary: "List LinkedIn company posts",
     description:
-      "Returns recent posts from a LinkedIn company page. Each post includes text, reaction count, comment count, and media.",
+      "Returns recent posts from a LinkedIn company page as the same PostList shape as `/v1/linkedin/profile/posts`: text, reaction/comment/share counts, the company slug on `post.author.username`, and `content.media_urls` / `thumbnail_url` when the row is an image, a video or an article share. Video duration is `content.duration_seconds`. The company's follower count rides on `post.ext.author_followers`.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "linkedin",
@@ -3844,8 +4346,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Post",
     summary: "Get LinkedIn ad details",
     description:
-      "Returns detailed information about a specific LinkedIn advertisement including ad copy, sponsor info, impressions, and targeting.",
+      "Returns one LinkedIn Ad Library ad as a canonical Post: `content.text` (the ad copy), `content.media_urls` and `thumbnail_url` (the creative), `author.display_name` and `avatar_url` (the advertiser), `published_at` (the campaign start date) and `engagement.views` (total impressions, when LinkedIn publishes them). Reaction, comment and share counts are not exposed on this surface and are null, and no targeting breakdown is returned. `author.username` currently repeats the advertiser NAME because the source sends no advertiser slug; join on the name, not on it.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["linkedin", "linkedin-ads"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "linkedin",
@@ -3871,6 +4375,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches the LinkedIn Ad Library for ads by company, keyword, or filters. Returns matching ads with ad copy and sponsor info.",
     pagination: { style: "cursor", nativeParam: "paginationToken" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["linkedin", "linkedin-ads"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "linkedin",
@@ -3886,13 +4392,15 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 500 },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 500, description: "5 credits per post RETURNED. The call holds `limit x 5` up front - the default limit of 20 holds 100 and the 100 maximum holds 500 - and refunds down to the posts that actually came back, so a member with 12 posts settles at 60 credits however high `limit` was set. This is the most expensive read on the platform per row: check whether /v1/linkedin/profile/posts (5 credits a page) already covers the window you need before walking the archive" },
     archetype: "PostList",
     summary: "Walk a LinkedIn member's COMPLETE post history, 100 posts a page, with exact publish times and share counts the other lanes cannot return. Metered: 5 credits per post returned, so try the cheaper /v1/linkedin/profile/posts first",
     description:
       "Returns a LinkedIn member's posts read from their own feed rather than from a public search index, and it is **the only route that reaches a member's complete history**. Measured on one prolific member 07/09/2026: this endpoint walked about 1,800 posts back to June 2017 and then stopped because there was nothing older, while /v1/linkedin/profile/posts caps at 100 and walking /v1/linkedin/search/posts with `from_member` exhausts at about 395. How far back it reaches is a property of the member, not of this endpoint: when a page comes back with no `next_cursor`, you have everything. Each post carries the text, media, the exact publish timestamp and the full engagement breakdown including share counts. **It is not the cheapest lane.** /v1/linkedin/profile/posts returns up to 100 posts for a flat 5 credits and is the whole history for most members, so start there and come here when it is not enough, or when you need what it cannot give you: an exact publish timestamp on every row instead of an approximation that shifts between calls, the share count, and a guarantee that every row was written by the member rather than reshared by them. **To walk the archive, pass `limit=100` and follow `next_cursor` until it stops coming back.** A `limit` below 100 returns that many of the newest posts and no cursor, because a partial page cannot be continued without silently skipping the rest of it. **Pricing is metered at 5 credits per post RETURNED**, so a member who has posted fewer than your `limit` costs less than you asked for, and a member with no posts costs nothing. Reposts are excluded, so every row you are charged for is one the member wrote. A profile we cannot find comes back as an empty list and costs nothing.",
     pagination: { style: "cursor", nativeParam: "pagination_token", limitParam: "limit" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "linkedin",
@@ -3904,7 +4412,7 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "sort_by", type: "enum", enumValues: ["date_posted", "relevance"], description: "Result ordering: `relevance` (default) or `date_posted`. On a subject-only call (`from_member` or `from_company` with no `query`) the results are ordered by date and `relevance` is rejected, because there is no query for them to be relevant to." },
       { name: "date_posted", type: "enum", enumValues: ["past_24h", "past_week", "past_month"], description: "Date filter based on Google-indexed results. One of `past_24h`, `past_week`, `past_month` (underscores, not hyphens). Note the JOB lanes use `past_24_hours` for the same concept; the two vocabularies are not interchangeable.", example: "past_week" },
       { name: "content_type", type: "enum", enumValues: ["videos", "photos", "jobs", "live_videos", "documents", "collaborative_articles"], description: "Narrow to one kind of post." },
-      { name: "from_company", type: "string", description: "Filter to posts from a company, by numeric LinkedIn company id (for example `1035`). A company slug or URL is rejected; read the id from `author.ext.company_id` on /v1/linkedin/company." },
+      { name: "from_company", type: "string", description: "Filter to posts from a company, by numeric LinkedIn company id (for example `1035`). A company slug or URL is rejected; read the id from `author.id` on /v1/linkedin/company." },
       { name: "from_member", type: "string", description: "Filter to posts from one member, by their LinkedIn member urn — the bare `ACoAA…` value published as `author.ext.urn` by /v1/linkedin/profile. A profile URL, a public slug (`williamhgates`) or a `urn:li:fsd_profile:`-prefixed value is rejected, because the source cannot use any of them. Pass this on its own, with no `query`, to walk one member's back catalogue." },
       { name: "query", type: "string", description: "Keyword or phrase to search for. Optional when `from_member` or `from_company` is set: omit it to get that subject's posts unfiltered, and note that supplying a real content word narrows the results to posts matching it.", example: "ai agents" },
     ],
@@ -3912,12 +4420,14 @@ export const ENDPOINTS: Endpoint[] = [
     creditTier: "advanced",
     creditCost: 5,
     pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "ladder" },
-    archetype: "SearchResult",
+    archetype: "PostList",
     summary: "Search public LinkedIn posts by keyword",
     description:
       "Finds public LinkedIn posts, feed updates, and Pulse articles via Google Search. Returns description, author, media, like count, comment count, and published date when LinkedIn exposes them publicly. Best-effort against Google's index, not a complete native LinkedIn search. Use `date_posted` to narrow to recent posts and `page` to walk deeper.\n\n**Reading one member's back catalogue.** Pass `from_member` on its own, with no `query`, and page through the result: this is the only way to reach a member's posts older than the 100 that /v1/linkedin/profile/posts can return, and unlike that endpoint it hands you a real `next_cursor` that keeps advancing. Get the urn from `author.ext.urn` on /v1/linkedin/profile. Those results come back newest-first; `sort_by=relevance` is rejected on a subject-only call because there is no query for them to be relevant to.\n\n**This is not a complete history, and how much it returns varies by member.** It reads a public search index, so it holds whatever that index holds for a given profile and no more. Measured 06/09/2026: one prolific member exhausted at 395 posts, while a customer walking his own profile of 800+ posts reached 223. Neither number is a limit you can raise by paging harder; the walk simply ends when the index runs out. Treat the depth as unknown until you walk it, and do not design around a fixed figure. For a member whose /v1/linkedin/profile/posts call already returns fewer posts than the `limit` you asked for, that feed is their whole history and this endpoint returns less, not more.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["linkedin"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "linkedin",
@@ -3934,8 +4444,9 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Transcript",
     summary: "Get a LinkedIn post video transcript",
     description:
-      "Fetches the transcript from a LinkedIn post video when LinkedIn exposes one publicly. A post with no caption track answers `404 RESOURCE_NOT_FOUND` with `details.reason: \"no_captions\"` and a message saying retrying will return the same result, so you can tell it apart from a transient failure and stop. Credits are only deducted when a transcript is actually returned.",
+      "Fetches the transcript from a LinkedIn post video when LinkedIn exposes one publicly. A post with no caption track, or with no video at all, answers `404 RESOURCE_NOT_FOUND` with `details.reason: \"no_captions\"` and a message saying retrying will return the same result, so you can tell it apart from a transient failure and stop. Credits are only deducted when a transcript is actually returned.\n\n**Reposts.** LinkedIn does not show a repost's content to logged-out viewers, so a repost URL is read from the original post it shares: the response carries a `_warnings` note naming the original post's URL (in `data._warnings`, or in `error.details._warnings` when the original has no transcript), and it costs the same as any other transcript request. A post that cannot be read logged-out and cannot be resolved to an original answers `404 RESOURCE_NOT_FOUND` with `details.reason: \"post_not_public\"`, at no charge.",
     cache: { category: "immutable", ttlSeconds: 2592000 },
+    tags: ["linkedin"],
   },
   {
     platform: "linkedin",
@@ -3943,10 +4454,10 @@ export const ENDPOINTS: Endpoint[] = [
     method: "GET",
     params: [],
     optionalParams: [
-      { name: "url", type: "string", example: "https://www.linkedin.com/company/microsoft" },
-      { name: "posts", type: "integer", description: "How many recent posts to fetch + average the computed metrics over (1-100, default 25).", example: "25" },
-      { name: "cursor", type: "string", description: "Pass a prior response's posts_cursor to deepen the post window." },
-      { name: "include", type: "string", description: "CSV subset of posts,computed (default both). include=computed drops the raw posts[] to save payload." },
+      { name: "url", type: "string", description: "Full LinkedIn company profile or page URL. One of the identity params is required.", example: "https://www.linkedin.com/company/microsoft" },
+      { name: "posts", type: "integer", description: "How many of the fetched recent posts to return and compute the metrics over (1-100, default 25). One call reads one page, which on LinkedIn company is 10 posts, so a larger value returns that page and a `_warnings` note; pass posts_cursor back as cursor for the next page.", example: "25" },
+      { name: "cursor", type: "string", description: "Pass a prior response's posts_cursor to read the next page of posts. Each call is a separate 5-credit call whose metrics cover that page only." },
+      { name: "include", type: "string", description: "CSV subset of posts,computed (default both). include=computed omits the raw posts[] array from the response to save payload. The metrics are computed from the same fetched posts either way, so they do not change." },
     ],
     oneOfGroups: [["url"]],
     creditTier: "standard",
@@ -3955,11 +4466,13 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "LinkedIn company profile, recent posts, and computed analytics in one call.",
     description:
-      "Fans out to the LinkedIn company profile and recent-posts endpoints in parallel and returns the unified author, the recent-post list, and computed metrics: average engagement rate, posting cadence (with the window it was measured over), the top post, and the format mix. The profile leg is the only critical leg: if posts can't be fetched the call still returns the profile with post-dependent metrics null, and every leg's status is surfaced in legs[]. Flat 5 credits.",
+      "Fans out to the LinkedIn company profile and recent-posts endpoints in parallel and returns the unified author, the recent-post list, and computed metrics: avg_engagement_rate, avg_engagement_rate_by_followers, posting cadence (with the window it was measured over), the top post, and the format mix. avg_engagement_rate is view-based: the mean of each post's (likes + comments + shares) / views, so only posts that carry a view count contribute, and it is null when none does. avg_engagement_rate_by_followers is the mean of likes + comments per post divided by the account's follower count, over every post that carries both, so it covers posts with no view count. One call reads one page of recent posts, which on LinkedIn company is 10 posts, and computes the metrics over that page: `posts` can shorten the window but not lengthen it past one page, and `_warnings` says so when fewer posts came back than `posts` asked for. Pass `posts_cursor` back as `cursor` to read the next page, 5 credits a call. The profile leg is the only critical leg: if posts can't be fetched the call still returns the profile with post-dependent metrics null, and every leg's status is surfaced in legs[]. Flat 5 credits. This is a company-page composite: pass a `linkedin.com/company/{slug}` URL. Person `/in/` URLs belong on `/v1/linkedin/profile`. Posts are loaded from `/v1/linkedin/company/posts` using the numeric `company_id` the profile leg returns as `author.id`.",
     execution: "sync",
     pagination: { style: "cursor", nativeParam: "cursor" },
+    paginatable: true,
     cache: { category: "profile", ttlSeconds: 900 },
     family: "prism",
+    tags: ["linkedin", "prism"],
   },
   // --- facebook (24 endpoints) ---
   {
@@ -3981,6 +4494,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns a unified Facebook Author profile with page ID, display name, profile URL, profile image, bio (the page intro), follower count, page-like count, and creation date. Two things to know before grading on the numbers: `author.followers` is Facebook's ROUNDED public display figure (106,000,000 on the Meta page, where the exact page-like count alongside it reads 106,588,412), and `author.joined_at` is an ISO DATE (`YYYY-MM-DD`), not an instant, because Facebook publishes page creation to the day. A **business page** carries considerably more than a personal profile, and all of it rides in `author.ext`: `business_category`, `website`, `links[]`, `public_phone`, `public_email`, `address`, `price_range`, `rating` (Facebook's recommendation string, e.g. `\"74% recommend (9,493 reviews)\"`) with `rating_count` (that review count as a number), `talking_about_count`, `cover_url`, `page_active`, and `ad_library_page_id` / `ad_library_status`: the Ad Library page id is a different id from `author.id` and is the one `/v1/facebook/adlibrary/company/ads` takes, so you can chain profile → ads off a single lookup. A personal profile returns null for the listing fields it has no equivalent for rather than omitting them. `links[]` and `business_hours[]` are also mapped, the latter only when you pass `get_business_hours=true`, but Facebook returned both empty on every page measured on 2026-08-11, so treat them as best effort rather than data you can depend on. `author.following` and `author.posts_count` remain null because the upstream profile response does not provide those totals.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["facebook"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "facebook",
@@ -3991,17 +4506,23 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "url", type: "string", description: "Full URL of the Facebook page or profile to fetch posts for", example: "https://www.facebook.com/Meta" },
       { name: "pageId", type: "string", description: "Facebook profile page id" },
       { name: "cursor", type: "string", description: "To paginate through the posts" },
+      { name: "include", type: "enum", enumValues: ["engagement"], description: "Set to `engagement` (one token only) to fill `post.engagement.shares` on every row, and `post.engagement.views` and `post.content.duration_seconds` on reels, in this one call. Holds 1 credit per row (3 a page) and keeps only the rows filled from a fresh lookup: rows already in cache and rows the lookup cannot fill are refunded, and a row with no public share count stays null and is free, so a page is never more than 4 credits and the usual bill is lower. A row that links to an event rather than a post is not looked up. The join takes 2 to 7 seconds on a fresh page, never more than 12, and nothing when the rows are already cached; read `data.hydration` for the rows, the credits held and kept, and the time. Without it the call is unchanged." },
     ],
     oneOfGroups: [["url", "pageId"]],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 4, description: "1 credit for the page. include=engagement holds 1 credit per row (3 rows a page) and keeps only the rows filled from a fresh lookup, so a page is at most 4 credits; rows served from cache are free, unfilled rows are refunded, and a repeat of the same call within the cache window costs 0." },
     archetype: "PostList",
     summary: "List Facebook page posts",
     description:
-      "Returns a list of recent posts from a Facebook page or profile. Each post includes the post text, like count, comment count, media attachments, the publish timestamp, and the per-reaction breakdown on `post.ext.reaction_counts` (`[{type, count}]`, highest first). `engagement.shares` is null on this lane because Facebook exposes a share count on the individual post permalink only, not on the feed surface: use `/v1/facebook/post` (1 credit) or batch permalinks into `POST /v1/prism/post-stats` when you need it. Facebook serves this feed in small slices, so the first response is a window onto the page rather than everything it has: `pagination.page_size` reports how many posts that window held, and deeper history is a cursor walk. Send `pagination.next_cursor` back as `cursor` and repeat until `pagination.has_more` is false; each page costs 1 credit, so depth is bounded by how many pages you buy.",
+      "Returns a list of recent posts from a Facebook page or profile. Each post includes the post text, like count, comment count, media attachments, the publish timestamp, and the per-reaction breakdown on `post.ext.reaction_counts` (`[{type, count}]`, highest first). Facebook publishes a post's share count, and a reel's exact view count and duration, on the individual post only, not on the feed, so on a plain call `post.engagement.shares` is null on every row and `post.engagement.views` and `post.content.duration_seconds` are null on reels. Send `include=engagement` and every row is joined, in the same call, to the per-post lookup that carries them: the share count lands on each row, and the exact view count and duration on each reel. The reaction counts and the publish time the feed already carries are never replaced, and a row that links to an event rather than a post is not looked up. Cost: 1 credit for the page plus 1 credit per row filled from a fresh lookup (3 rows a page, so 4 credits at most); rows already in cache are filled for free, rows that could not be filled are refunded, and a repeat of the same call within the cache window is 0 credits. Time: `include=engagement` adds 2 to 7 seconds on a fresh page (the lookups run in parallel and the call waits for the slowest, never more than 12 seconds) and nothing when the rows are already cached. The response carries a `hydration` block itemising rows, lookups, cache hits, credits and milliseconds. Facebook serves this feed in small slices, so the first response is a window onto the page rather than everything it has: `pagination.page_size` reports how many posts that window held, and deeper history is a cursor walk. Send `pagination.next_cursor` back as `cursor` and repeat until `pagination.has_more` is false; each page costs 1 credit (plus the join when you ask for it), so depth is bounded by how many pages you buy.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["facebook"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "engagement", sibling: "facebook/post", fills: ["post.engagement.shares", "post.engagement.views", "post.content.duration_seconds"], creditsPerItem: 1, maxItems: 3, cacheSibling: true, warnings: { unavailable: "engagement_unavailable", partial: "engagement_partial" } },
+    ],
   },
   {
     platform: "facebook",
@@ -4023,6 +4544,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns detailed information about a specific Facebook post: the post text, like count, comment count, share count, media attachments, author info, and the per-reaction breakdown on `post.ext.reaction_counts` (`[{type, count}]`, highest first, zero-count reactions omitted: `like`, `love`, `care`, `haha`, `wow`, `sad`, `anger`). `post.ext.feedback_id` is the join key `/v1/facebook/post/comments` accepts, so you can chain post to comments off a single lookup instead of paying for the URL resolution twice.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["facebook"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "facebook",
@@ -4044,6 +4567,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a list of comments on a specific Facebook post. Each comment includes the author name, comment text, like count, reply count, and creation timestamp.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["facebook"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "facebook",
@@ -4066,6 +4591,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns posts from a public Facebook group, newest first. Each post carries the post text, reaction count, comment count, the per-reaction breakdown on `post.ext.reaction_counts`, author name and id, the group permalink, the exact publish timestamp, and any attached image or video. `engagement.shares` is null here for the same reason it is on `profile/posts`: Facebook exposes a share count on the post permalink only. Facebook serves this feed in small slices (**3 to 4 posts per page**) so deeper history is a cursor walk rather than one large call: send the `pagination.next_cursor` from each response back as `cursor` and repeat until `pagination.has_more` is false. A 30-page walk on a public group returned 91 posts with no duplicates and a cursor still open, so depth is bounded by how many pages you are willing to buy (1 credit each) rather than by a hard cap. All four `sort_by` values paginate; use `sort_by=CHRONOLOGICAL` to stay current on a busy group, since the default and `TOP_POSTS` mix older high-engagement posts into the first pages.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["facebook"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "facebook",
@@ -4085,6 +4612,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns a Facebook group's public record: name, description, member count, privacy, visibility, and creation date. Pass the group URL or group_id. Use group/posts for the group's recent posts.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["facebook"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "facebook",
@@ -4103,6 +4632,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the transcript of a Facebook video post. Supports auto-generated captions.",
     cache: { category: "immutable", ttlSeconds: 2592000 },
+    tags: ["facebook"],
   },
   {
     platform: "facebook",
@@ -4114,17 +4644,23 @@ export const ENDPOINTS: Endpoint[] = [
     optionalParams: [
       { name: "next_page_id", type: "string", description: "To paginate through to the next page" },
       { name: "cursor", type: "string", description: "To paginate through to the next page" },
+      { name: "include", type: "enum", enumValues: ["details"], description: "Set to `details` (one token only) to fill `post.author.display_name`, `post.author.avatar_url`, `post.ext.author_id`, `post.engagement.likes`, `.comments` and `.shares`, and `post.published_at` on every photo in this one call. Holds 1 credit per photo (8 a page) and keeps only the rows filled from a fresh lookup; rows already in cache and rows the lookup cannot fill are refunded, so a page is never more than 9 credits. A photo inside a multi-photo post carries its own counts, not the post's. The join takes 2 to 8 seconds on a fresh page, never more than 12, and nothing when the rows are already cached; read `data.hydration` for the rows, the credits held and kept, and the time. Without it the call is unchanged." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 9, description: "1 credit for the page. include=details holds 1 credit per photo (8 a page) and keeps only the rows filled from a fresh lookup, so a page is at most 9 credits; rows served from cache are free, unfilled rows are refunded, and a repeat of the same call within the cache window costs 0." },
     archetype: "PostList",
     summary: "List Facebook profile photos",
     description:
-      "Returns Facebook page or profile photos as unified Post items. Each item includes a photo ID, permalink, full-size image URL, thumbnail, and accessibility caption when available. Per-item author, engagement counts, and publish time are not exposed, so those canonical fields and engagement counts remain null.",
+      "Returns Facebook page or profile photos as unified Post items. Each item includes a photo ID, permalink, full-size image URL, thumbnail, and accessibility caption when available. The photo listing itself carries no author, engagement or date, so on a plain call `post.author`, `post.engagement` and `post.published_at` are null on every row. Send `include=details` and every photo is joined, in the same call, to the per-post lookup for its permalink: the page's name and avatar (`post.author.display_name`, `post.author.avatar_url`) and numeric id (`post.ext.author_id`), the reaction count, the comment count, the share count and the publish time land on each row. What the counts mean depends on the photo: a photo posted on its own carries that post's counts (the photo IS the post), while a photo inside a multi-photo post carries its own counts, which are usually far lower than the post's. The publish time is the post's either way. Photos have no view count, so `post.engagement.views` stays null. Cost: 1 credit for the page plus 1 credit per photo filled from a fresh lookup (8 photos a page, so 9 credits at most); rows already in cache are filled for free, rows that could not be filled are refunded, and a repeat of the same call within the cache window is 0 credits. Time: `include=details` adds 2 to 8 seconds on a fresh page (the lookups run in parallel and the call waits for the slowest, never more than 12 seconds) and nothing when the rows are already cached. The response carries a `hydration` block itemising rows, lookups, cache hits, credits and milliseconds.",
     pagination: { style: "cursor", nativeParam: "next_page_id" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["facebook"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "details", sibling: "facebook/post", fills: ["post.author.display_name", "post.author.avatar_url", "post.ext.author_id", "post.engagement.likes", "post.engagement.comments", "post.engagement.shares", "post.published_at"], creditsPerItem: 1, maxItems: 8, cacheSibling: true, warnings: { unavailable: "details_unavailable", partial: "details_partial" } },
+    ],
   },
   {
     platform: "facebook",
@@ -4147,6 +4683,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns Facebook page or profile reels as unified Post items. Each item includes a reel ID, description, thumbnail, duration when available, author identity, `engagement.views` when the upstream provides it, permalink, and publish time. Likes, comments, shares, and saves remain null because this endpoint does not expose those counts. **Two caveats worth knowing before you grade on these numbers:** (1) `engagement.views` here is Facebook's ROUNDED public display value (the \"12K\" / \"2.6M\" the page shows, parsed back to a number: e.g. 12000 where the true count is 12366), not an exact count; (2) the upstream carries no per-reel engagement beyond that view count. A third, on pagination: on a page with only a handful of reels the first response can report `pagination.has_more: true` and the next page then come back empty, because the upstream mints a cursor it cannot fill. The empty page is free, so this costs a round trip rather than a credit. For EXACT views plus likes, comments, and shares, the easiest path is `GET /v1/facebook/profile/reels/full`, which runs this list and the per-reel lookups server-side and merges the exact engagement in (flat 5 credits per page of 10 reels). Alternatively, take each item's `post.url` and pass it to `/v1/facebook/post` (single) or batch up to 100 of them into `POST /v1/prism/post-stats` (1 credit per successful URL, dead links refunded).",
     pagination: { style: "cursor", nativeParam: "next_page_id" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["facebook"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "facebook",
@@ -4167,6 +4705,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns one ad from the Facebook Ad Library. Video creatives land in `content.media_urls` (playable URL) and `content.thumbnail_url` (preview frame); every ad signal rides the `post.ext.ad` envelope: CTA text and type, `link_url`, `is_active`, `end_date_iso`, `display_format`, `title`, `publisher_platforms`, `categories`, the video URLs, and the advertiser's own `page_id`, `page_profile_uri` (their Facebook page, so you can chain straight to `/v1/facebook/profile`), `page_like_count` and `page_categories`. **`spend`, `reach_estimate` and `currency` are populated by Facebook for POLITICAL and issue ads only** and read null or empty on a commercial ad; Facebook publishes no per-ad impression count outside that same political set, so there is no impressions figure to return. `post.author.username` is null by design: an Ad Library record carries the page NAME, not its handle, and a name is not a handle. An ad has no public view count, so `engagement.views` carries Facebook's audience REACH ESTIMATE where one exists (political and issue ads) and is null everywhere else; the same figure is on `post.ext.ad.reach_estimate` under its real name, and `computed.engagement_rate` is derived from it rather than from any real engagement. `published_at` is the ad's first-run DATE; the `07:00:00Z` clock component on every row is an artefact of Facebook storing ad dates on a US Pacific day boundary and carries no sub-day meaning. For ad video transcripts use `/v1/facebook/adlibrary/ad/transcript` (separate endpoint, premium tier).",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["facebook", "facebook-ads"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "facebook",
@@ -4196,6 +4736,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns ads from one company or page in the Facebook Ad Library, ordered by impressions or recency depending on `sort_by`. Same per-ad shape as `/v1/facebook/adlibrary/ad`: video creatives in `content.media_urls` and `content.thumbnail_url`, every ad signal on the `post.ext.ad` envelope (CTA, `link_url`, active status, dates, display format, headline, video URLs, plus the advertiser's `page_profile_uri`, `page_like_count` and `page_categories`). **`spend` and `reach_estimate` are populated for POLITICAL and issue ads only** and read null on commercial advertisers. `engagement.views` carries Facebook's audience REACH ESTIMATE, not a view count (an ad has no public view count); it is null on commercial advertisers and the same figure rides `post.ext.ad.reach_estimate` under its real name. `published_at` is the ad's first-run DATE: the `07:00:00Z` clock component is an artefact of Facebook's US Pacific day boundary and carries no sub-day meaning. `post.author.username` is null by design (an Ad Library record carries the page name, not its handle).",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["facebook", "facebook-ads"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "facebook",
@@ -4226,6 +4768,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches the Facebook Ad Library for ads matching a keyword. Returns matching ads with creative text, images, sponsor info, and status.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["facebook", "facebook-ads"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "facebook",
@@ -4245,6 +4789,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches for companies/pages in the Facebook Ad Library. Returns matching pages with active ad counts and page details.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["facebook", "facebook-ads"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "facebook",
@@ -4255,17 +4801,23 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     optionalParams: [
       { name: "cursor", type: "string", description: "Cursor returned by the previous response for pagination." },
+      { name: "include", type: "enum", enumValues: ["details"], description: "Set to `details` (one token only) to fill, on every event in this one call, `post.ext.event.description`, `address`, `latitude`, `longitude`, `hosts`, `host_context_text`, `category`, `privacy`, `attendance_count`, `interested_count` and `going_count`, the cover image on `post.content.thumbnail_url`, and the RSVP counts on `post.engagement.views` (interested) and `.likes` (going). Holds 1 credit per event (8 a page) and keeps only the rows filled from a fresh lookup; rows already in cache and rows the lookup cannot fill are refunded, so a page is never more than 9 credits. The join takes 2 to 6 seconds on a fresh page, never more than 12, and nothing when the rows are already cached; read `data.hydration` for the rows, the credits held and kept, and the time. Without it the call is unchanged." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 9, description: "1 credit for the page. include=details holds 1 credit per event (8 a page) and keeps only the rows filled from a fresh lookup, so a page is at most 9 credits; rows served from cache are free, unfilled rows are refunded, and a repeat of the same call within the cache window costs 0." },
     archetype: "PostList",
     summary: "List a Facebook page's events",
     description:
-      "Returns upcoming and past events for a public Facebook page: title, cover image, permalink, the event start time, and the RSVP counts. **Two things to read carefully.** `published_at` on this lane is the event's START time, not a publication time, so it is routinely in the FUTURE on an upcoming event. And an event has no views or likes, so `engagement.views` carries the interested count and `engagement.likes` the going count; `computed.engagement_rate` is derived from those RSVPs rather than from real engagement. For an event's description, location, hosts and end time, follow the item `url` to `/v1/facebook/event/details`, which returns the full record on `post.ext.event`. Forward the returned cursor for additional pages.",
+      "Returns upcoming and past events for a public Facebook page. Each row carries the event title, the permalink, the start time, the host page's name, and on `post.ext.event` the rendered time line (`time_text`, e.g. \"Fri, Sep 11 at 5:00 PM CDT\"), `location_name` (the venue), `city`, `start_timestamp`, and the `is_canceled`, `is_past` and `is_online` flags. `published_at` on this lane is the event's START time, not a publication time, so it is routinely in the FUTURE on an upcoming event. The page's event listing carries no cover image, no description and no RSVP counts, so on a plain call `post.content.thumbnail_url`, `post.engagement.views` and `post.engagement.likes` are null. Send `include=details` and every event is joined, in the same call, to the per-event details lookup: the description, the street address, the coordinates, the hosts (`hosts[]` and the one-line `host_context_text`), the category, the privacy, the attendance count, the cover image and the RSVP counts land on each row. An event has no views or likes, so `engagement.views` then carries the interested count and `engagement.likes` the going count, with the same numbers under their real names on `post.ext.event.interested_count` and `going_count`. Values the row already carried (its shorter time line, its city) are never replaced. Cost: 1 credit for the page plus 1 credit per event filled from a fresh lookup (8 events a page, so 9 credits at most); rows already in cache are filled for free, rows that could not be filled are refunded, and a repeat of the same call within the cache window is 0 credits. Time: `include=details` adds 2 to 6 seconds on a fresh page (the lookups run in parallel and the call waits for the slowest, never more than 12 seconds) and nothing when the rows are already cached. The response carries a `hydration` block itemising rows, lookups, cache hits, credits and milliseconds. Forward the returned cursor for additional pages.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["facebook"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "details", sibling: "facebook/event/details", fills: ["post.ext.event.description", "post.ext.event.time_text", "post.ext.event.duration_text", "post.ext.event.location_name", "post.ext.event.address", "post.ext.event.city", "post.ext.event.latitude", "post.ext.event.longitude", "post.ext.event.hosts", "post.ext.event.host_context_text", "post.ext.event.category", "post.ext.event.privacy", "post.ext.event.is_online", "post.ext.event.is_canceled", "post.ext.event.is_past", "post.ext.event.attendance_count", "post.ext.event.interested_count", "post.ext.event.going_count", "post.content.thumbnail_url", "post.engagement.views", "post.engagement.likes", "post.author.display_name"], creditsPerItem: 1, maxItems: 8, cacheSibling: true, warnings: { unavailable: "details_unavailable", partial: "details_partial" } },
+    ],
   },
   {
     platform: "facebook",
@@ -4289,6 +4841,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "cursor", nativeParam: "cursor" },
     emptyOn404: true,
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["facebook"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "facebook",
@@ -4308,6 +4862,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches Facebook Marketplace locations and cities, returning lat/lng coordinates you can feed into `/v1/facebook/marketplace/search`.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["facebook"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "facebook",
@@ -4340,6 +4896,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches Facebook Marketplace listings by keyword + lat/lng with price, condition, delivery, and date-listed filters. Forward the returned cursor for additional pages. With `sort_by=creation_time_descend`, FB may return slightly different ordering across identical requests: for alerting workflows, scrape multiple pages and dedupe by listing id rather than assuming stable order.",
     pagination: { style: "cursor", nativeParam: "cursor", limitParam: "count" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["facebook"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "facebook",
@@ -4359,6 +4917,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Fetches a single Facebook Marketplace listing. The canonical Post leaves carry the title (`content.text`), the photos (`content.media_urls`) and the listing permalink; everything that makes it a LISTING rides `post.ext.commerce`: `price` (a number) with `currency` and `price_formatted`, `strikethrough_price_formatted` when the seller cut the price, the full `description`, `location_text` with `latitude` and `longitude`, `attributes[]` (where the condition lives, e.g. `{attribute_name: \"Condition\", label: \"Used - Good\"}`), `category_id`, `mileage` on vehicles, `delivery_types`, and the availability flags `is_sold`, `is_live`, `is_pending`, `is_hidden`, `is_shipping_offered`, `is_buy_now_enabled` and `messaging_enabled`. The engagement leaves stay null: Facebook publishes no public like or comment count on a listing. Pass either the numeric `id` or a full Marketplace `url`.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["facebook"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "facebook",
@@ -4380,6 +4940,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches the public Facebook Events directory for events matching a keyword. Forward the returned cursor for additional pages.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["facebook"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "facebook",
@@ -4391,17 +4953,23 @@ export const ENDPOINTS: Endpoint[] = [
     optionalParams: [
       { name: "time", type: "enum", enumValues: ["today", "this_week", "next_week"], description: "Relative time window. Defaults to all time when omitted." },
       { name: "cursor", type: "string", description: "Cursor returned by the previous response for pagination." },
+      { name: "include", type: "enum", enumValues: ["details"], description: "Set to `details` (one token only) to fill, on every event in this one call, `post.ext.event.description`, `address`, `city`, `latitude`, `longitude`, `hosts`, `host_context_text`, `category`, `privacy`, `is_canceled` and `attendance_count`, and the host credit on `post.author.display_name`. Holds 1 credit per event (at most 12 a page) and keeps only the rows filled from a fresh lookup; rows already in cache and rows the lookup cannot fill are refunded, so a page is never more than 13 credits. The join takes 2 to 8 seconds on a fresh page, never more than 12, and nothing when the rows are already cached; read `data.hydration` for the rows, the credits held and kept, and the time. Without it the call is unchanged." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 13, description: "1 credit for the page. include=details holds 1 credit per event (at most 12 a page) and keeps only the rows filled from a fresh lookup, so a page is at most 13 credits; rows served from cache are free, unfilled rows are refunded, and a repeat of the same call within the cache window costs 0." },
     archetype: "PostList",
     summary: "List Facebook events for a city",
     description:
-      "Returns the events listed under a Facebook city or region Events explore page. **The `url` must be an Events explore URL ending in the numeric location id** (see the example); a plain page URL is rejected with a 400 at 0 credits, and a single page's OWN events are `/v1/facebook/profile/events`. The same two reading notes apply as on that endpoint: `published_at` is the event's START time and is routinely in the future, and `engagement.views` and `engagement.likes` carry the interested and going RSVP counts because an event has no views or likes. Filter by relative `time` (defaults to all time) and forward the returned cursor for additional pages.",
+      "Returns the events listed under a Facebook city or region Events explore page. **The `url` must be an Events explore URL ending in the numeric location id** (see the example); a plain page URL is rejected with a 400 at 0 credits, and a single page's OWN events are `/v1/facebook/profile/events`. Each row carries the title, the permalink, the cover image, the start time, the RSVP counts, and on `post.ext.event` the rendered time line (`time_text`), `location_name` (the venue), `start_timestamp`, `is_online`, `is_past`, `interested_count` and `going_count`. The same two reading notes apply as on that endpoint: `published_at` is the event's START time and is routinely in the future, and `engagement.views` and `engagement.likes` carry the interested and going RSVP counts because an event has no views or likes. The explore listing carries no description, address, city, host or category, so those are null on a plain call. Send `include=details` and every event is joined, in the same call, to the per-event details lookup: the description, the street address and city, the coordinates, the hosts (`hosts[]`, and the one-line host credit on `post.author.display_name` and `post.ext.event.host_context_text`), the category, the privacy, the cancelled flag and the attendance count land on each row, and a missing cover or RSVP count is filled where the details carry one. Values the row already carried are never replaced. Cost: 1 credit for the page plus 1 credit per event filled from a fresh lookup (at most 12 events a page, so 13 credits at most); rows already in cache are filled for free, rows that could not be filled are refunded, and a repeat of the same call within the cache window is 0 credits. Time: `include=details` adds 2 to 8 seconds on a fresh page (the lookups run in parallel and the call waits for the slowest, never more than 12 seconds) and nothing when the rows are already cached. The response carries a `hydration` block itemising rows, lookups, cache hits, credits and milliseconds. Filter by relative `time` (defaults to all time) and forward the returned cursor for additional pages.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["facebook"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "details", sibling: "facebook/event/details", fills: ["post.ext.event.description", "post.ext.event.time_text", "post.ext.event.duration_text", "post.ext.event.location_name", "post.ext.event.address", "post.ext.event.city", "post.ext.event.latitude", "post.ext.event.longitude", "post.ext.event.hosts", "post.ext.event.host_context_text", "post.ext.event.category", "post.ext.event.privacy", "post.ext.event.is_online", "post.ext.event.is_canceled", "post.ext.event.is_past", "post.ext.event.attendance_count", "post.ext.event.interested_count", "post.ext.event.going_count", "post.content.thumbnail_url", "post.engagement.views", "post.engagement.likes", "post.author.display_name"], creditsPerItem: 1, maxItems: 12, cacheSibling: true, warnings: { unavailable: "details_unavailable", partial: "details_partial" } },
+    ],
   },
   {
     platform: "facebook",
@@ -4421,6 +4989,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Fetches full metadata for a Facebook event. The canonical Post leaves carry the title (`content.text`), the cover image (`content.thumbnail_url`), the permalink and the host line; the event record itself rides `post.ext.event`: `description`, `start_timestamp` and `end_timestamp`, the rendered `time_text` (\"Saturday, August 29, 2026 at 7:00 PM - 9:00 PM PDT\", the only place the event's own timezone appears), `duration_text`, `location_name`, `address`, `city`, `latitude` and `longitude`, `hosts[]` (each with id, name, url and a verification flag), `category`, `ticket_url`, `privacy`, `is_online`, `is_canceled`, `is_past`, and the RSVP counts `interested_count`, `going_count` and `attendance_count`. **Read the RSVP counts from `post.ext.event`, not from `post.engagement`:** an event has no views or likes, so `engagement.views` carries the interested count and `engagement.likes` the going count for archetype compatibility, and `computed.engagement_rate` is derived from those RSVPs rather than from any real engagement.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["facebook"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "facebook",
@@ -4440,6 +5010,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Retrieves a transcript for a single Facebook Ad Library video ad. Uses Facebook-provided captions when available, otherwise transcribes the public video URL on demand. Ads without retrievable captions return a 404 RESOURCE_NOT_FOUND, and on-demand transcription can fail transiently (503): both outcomes are free; credits are only deducted when a transcript is returned.",
     cache: { category: "immutable", ttlSeconds: 2592000 },
+    tags: ["facebook", "facebook-ads"],
   },
   {
     platform: "facebook",
@@ -4447,10 +5018,10 @@ export const ENDPOINTS: Endpoint[] = [
     method: "GET",
     params: [],
     optionalParams: [
-      { name: "url", type: "string", example: "https://www.facebook.com/mrbeast" },
-      { name: "posts", type: "integer", description: "How many recent posts to fetch + average the computed metrics over (1-100, default 25).", example: "25" },
-      { name: "cursor", type: "string", description: "Pass a prior response's posts_cursor to deepen the post window." },
-      { name: "include", type: "string", description: "CSV subset of posts,computed (default both). include=computed drops the raw posts[] to save payload." },
+      { name: "url", type: "string", description: "Full Facebook profile or page URL. One of the identity params is required.", example: "https://www.facebook.com/mrbeast" },
+      { name: "posts", type: "integer", description: "How many of the fetched recent posts to return and compute the metrics over (1-100, default 25). One call reads one page, which on Facebook is 3 posts, so a larger value returns that page and a `_warnings` note; pass posts_cursor back as cursor for the next page.", example: "25" },
+      { name: "cursor", type: "string", description: "Pass a prior response's posts_cursor to read the next page of posts. Each call is a separate 5-credit call whose metrics cover that page only." },
+      { name: "include", type: "string", description: "CSV subset of posts,computed (default both). include=computed omits the raw posts[] array from the response to save payload. The metrics are computed from the same fetched posts either way, so they do not change." },
     ],
     oneOfGroups: [["url"]],
     creditTier: "standard",
@@ -4459,11 +5030,13 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "Facebook profile, recent posts, and computed analytics in one call.",
     description:
-      "Fans out to the Facebook profile and recent-posts endpoints in parallel and returns the unified author, the recent-post list, and computed metrics: average engagement rate, posting cadence (with the window it was measured over), the top post, and the format mix. The profile leg is the only critical leg: if posts can't be fetched the call still returns the profile with post-dependent metrics null, and every leg's status is surfaced in legs[]. Flat 5 credits. For Facebook, `author.following` and `author.posts_count` remain null because the profile upstream does not provide those totals.",
+      "Fans out to the Facebook profile and recent-posts endpoints in parallel and returns the unified author, the recent-post list, and computed metrics: avg_engagement_rate, avg_engagement_rate_by_followers, posting cadence (with the window it was measured over), the top post, and the format mix. avg_engagement_rate is view-based: the mean of each post's (likes + comments + shares) / views, so only posts that carry a view count contribute, and it is null when none does. avg_engagement_rate_by_followers is the mean of likes + comments per post divided by the account's follower count, over every post that carries both, so it covers posts with no view count. One call reads one page of recent posts, which on Facebook is 3 posts, and computes the metrics over that page: `posts` can shorten the window but not lengthen it past one page, and `_warnings` says so when fewer posts came back than `posts` asked for. Pass `posts_cursor` back as `cursor` to read the next page, 5 credits a call. The profile leg is the only critical leg: if posts can't be fetched the call still returns the profile with post-dependent metrics null, and every leg's status is surfaced in legs[]. Flat 5 credits. For Facebook, `author.following` and `author.posts_count` remain null because the profile upstream does not provide those totals.",
     execution: "sync",
     pagination: { style: "cursor", nativeParam: "cursor" },
+    paginatable: true,
     cache: { category: "profile", ttlSeconds: 900 },
     family: "prism",
+    tags: ["facebook", "prism"],
   },
   {
     platform: "facebook",
@@ -4479,16 +5052,18 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 25, pageSize: 10 },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 25, pageSize: 10, description: "5 credits per page of 10 reels - 1 for the list and 4 for the per-reel enrichment - which is roughly half what running the list-then-post-stats chain yourself costs. With no `limit` that is one page and a flat 5 credits. With `limit` set the endpoint walks `ceil(limit / 10)` pages, up to 5 for the 50 maximum (25 credits), holds that many up front and refunds every page it did not need. A page whose enrichment yields zero coverage refunds the 4-credit premium automatically, leaving the 1-credit list price" },
     archetype: "Analytics",
     summary: "Facebook profile reels with exact views, likes, comments, and shares merged in, in one call.",
     description:
       "Returns a Facebook page or profile's reels with EXACT per-reel engagement merged in: one call instead of the reels-list → post-stats chain. The plain `/v1/facebook/profile/reels` list only carries a rounded public view count (\"12K\" parsed back to 12000) and no likes, comments, or shares, because Facebook exposes those on the individual reel permalink only. This endpoint fetches the list, then queries each reel's permalink server-side and overwrites the item's `engagement` with the exact figures: `views` (the rounded list value is replaced), `likes`, `comments`, and `shares`. `saves` stays null (Facebook exposes no public save count), and `comments` can be null on a zero-comment reel (a quirk of the permalink upstream). Per-item `ext.engagement_source` is `\"post_detail\"` when the exact figures landed and null when that reel's lookup failed (the item then keeps the honest list values); read `engagement_coverage` before grading, and `_warnings: [\"engagement_partial\"]` flags a partial page. Billing: a flat 5 credits per page of 10 reels (1 credit for the list + 4 for the per-reel enrichment, roughly half the cost of running the chain yourself); if enrichment yields zero coverage the 4-credit premium is refunded automatically. Paginate with `next_cursor`, or pass `limit` (1-50) to have the endpoint walk pages server-side until it has collected that many reels, billed per page consumed.",
     execution: "sync",
     pagination: { style: "cursor", nativeParam: "cursor", limitParam: "limit", limitMax: 50 },
+    paginatable: true,
     collectUntilN: "`limit` (1-50) walks upstream pages server-side until that many reels are collected, billing per page of 10 consumed (5 credits each, 5-25 total). It is not a page size.",
     cache: { category: "post", ttlSeconds: 600 },
     family: "prism",
+    tags: ["facebook", "prism"],
   },
   // --- reddit (14 endpoints) ---
   {
@@ -4511,9 +5086,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "PostList",
     summary: "List Reddit subreddit posts",
     description:
-      "Returns a list of posts from a subreddit. Each post includes the title, the post body at `ext.selftext`, score, comment count, author, permalink, and creation timestamp. Most rows also carry the author's avatar at `author.avatar_url`, the post's attached media or link target at `content.media_urls`, and the upvote ratio, post flair and Reddit's own content language at `ext.upvote_ratio`, `ext.flair` and `ext.content_language`. `ext.upvote_ratio` and `ext.flair` come from the same source as the posts, so they are there whenever Reddit reports them. `author.avatar_url` and `ext.content_language` come from a second source that runs alongside the main one on PAGE ONE ONLY, so a walk past the first page returns the same posts in the same order without those two, and on a small share of first pages they are null across the whole page while every other field is unchanged. Treat those two as present-usually rather than guaranteed, and never as a signal about the post itself. `content.media_urls` on this surface is whatever the post points at, so on a link post it is the article or site the post links to rather than an image or a video. Page size varies with the subreddit and the sort and is not fixed: a busy community returns roughly 15 to 25 posts on the default sort, and a narrow `sort=top` window can return fewer than 10. Paginate with `after` rather than assuming a count. Ranking and row set are Reddit's own listing, unchanged by the enrichment.",
+      "Returns a list of posts from a subreddit. Each post includes the title, the post body at `ext.selftext`, score, comment count, author, permalink, and creation timestamp. Most rows also carry the author's avatar at `author.avatar_url`, the post's attached media or link target at `content.media_urls`, and the upvote ratio, post flair and Reddit's own content language at `ext.upvote_ratio`, `ext.flair` and `ext.content_language`. `ext.upvote_ratio` and `ext.flair` come from the same source as the posts, so they are there whenever Reddit reports them. `author.avatar_url` and `ext.content_language` come from a second source that runs alongside the main one on PAGE ONE ONLY, so a walk past the first page returns the same posts in the same order without those two, and on a small share of first pages they are null across the whole page while every other field is unchanged. Treat those two as present-usually rather than guaranteed, and never as a signal about the post itself. `content.media_urls` on this surface is whatever the post points at, so on a link post it is the article or site the post links to rather than an image or a video. Page size varies with the subreddit and the sort and is not fixed: a busy community returns roughly 15 to 25 posts on the default sort. On `sort=top`, a SHORT window (`day`) is a full page and a LONG window (`year`) is the sparse one — measured 09/09/2026 on r/HouseOfTheDragon: all 22, day 22, week 19, month 10, year 3. Paginate with `after` rather than assuming a count. Ranking and row set are Reddit's own listing, unchanged by the enrichment.",
     pagination: { style: "cursor", nativeParam: "after" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["reddit"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "reddit",
@@ -4531,8 +5108,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Author",
     summary: "Get Reddit subreddit details",
     description:
-      "Returns detailed information about a subreddit including the subscriber count at `author.followers`, weekly active users and weekly contributions at `author.ext.weekly_active_users` and `author.ext.weekly_contributions`, the description, creation date, rules, and subreddit icon URL. The subscriber count and Reddit's own community language tag at `author.ext.language` come from a second source that runs only when the main one leaves the count empty, so on a small share of calls they are null while every other field is unchanged. Note: the subreddit name is case-sensitive here: pass the subreddit's canonical casing (e.g. `AskReddit`, not `askreddit`). An incorrect casing returns a refunded 404.",
+      "Returns detailed information about a subreddit including the subscriber count at `author.followers`, weekly active users and weekly contributions at `author.ext.weekly_active_users` and `author.ext.weekly_contributions`, the description, creation date, rules, and subreddit icon URL. The subscriber count and Reddit's own community language tag at `author.ext.language` come from a second source that runs only when the main one leaves the count empty, so on a small share of calls they are null while every other field is unchanged. The subreddit name is case-sensitive on the main source: pass the canonical casing (e.g. `AskReddit`, not `askreddit`) to get the whole object. A non-canonical spelling is not a 404 — it falls through to the second source, which still answers with the core fields but without the weekly-activity numbers.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["reddit"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "reddit",
@@ -4545,7 +5124,7 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "sort", type: "enum", enumValues: ["relevance", "new", "top", "comment_count"], description: "Sort by" },
       { name: "timeframe", type: "enum", enumValues: ["all", "day", "week", "month", "year"], description: "Only return posts from this window. Applied on sort=relevance, sort=top and sort=comment_count. It has no effect with sort=new, which is already ordered newest-first and returns recent posts regardless." },
       { name: "after", type: "string", description: "Used to paginate to next page" },
-      { name: "trim", type: "boolean", description: "Set to true for a trimmed down version of the response. On this endpoint it also skips the second source that widens the page, so a trimmed page is BOTH thinner and much SHORTER: the trimmed page is the first source's own result, typically around 7 posts against the 25 a full page carries, and it drops `author.avatar_url` and the `ext.*` fields with the rest of the trimmed leaves. Use it to save bandwidth on a page you were going to sample, not to page through results." },
+      { name: "trim", type: "boolean", description: "Set to true for a trimmed down version of the response. On this endpoint it also skips the second source that widens the page, so a trimmed page is both thinner and usually shorter. Measured 09/09/2026: default 29 rows, `trim=true` 25 rows. It does not drop `author.avatar_url` or `ext.*` — those leaves stay when the first source already carried them. Use it to skip the widening pass, not to strip fields." },
       { name: "include_body", type: "boolean", description: "Set to true to include each post's body (selftext) on the search page. Rarely needed now: bodies arrive on the rows themselves. 1 extra credit per row that actually comes back with a body, unused credits refunded. Link posts have no body, so they are looked up and not charged for." },
     ],
     oneOfGroups: [],
@@ -4558,6 +5137,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches Reddit for posts matching a keyword query. Returns a list of matching posts with titles, scores, comment counts, subreddit names, and permalinks. One result page is assembled from more than one index, so a few leaves are reported for only part of a page and are `null` on the rest: `post.flags.spoiler`, `post.engagement.shares` and `post.engagement.saves`. A `null` there means the index that returned that row does not report the field, never that the value is false or zero — treat those three as opportunistic and do not aggregate over them. The post body is at `ext.selftext` (`content.text` is the title and body joined, matching `/v1/reddit/post`); this surface sends it on self-posts without any extra flag. A page holds up to 25 posts and the exact count varies between calls, so do not assume a fixed page size: pages of about 7 are common and a sparse query can return fewer. Rows beyond the first few, and the newest rows on a `sort=new` page, may carry fewer fields than the rest: `flags.spoiler` in particular is present on some rows and null on others within one response. Where a row carries them you also get the author's avatar at `author.avatar_url`, images or video at `content.media_urls`, and the upvote ratio, post flair and Reddit's own content language at `ext.upvote_ratio`, `ext.flair` and `ext.content_language`. `include_body=true` is still accepted and rarely needed now: bodies arrive on the rows themselves, so on most pages the flag finds nothing to fetch and its extra credits are refunded in full. It still hydrates a row that does arrive without a body, at 1 extra credit per row hydrated, up to 25 per page. Link posts have no body, so `ext.selftext` is null. Ranking is a voice-of-customer sweep rather than precision retrieval: expect some off-topic matches on short or ambiguous queries, and use quoted phrases to tighten them.",
     pagination: { style: "cursor", nativeParam: "after" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["reddit"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "reddit",
@@ -4576,6 +5157,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns a single Reddit post from its URL, including the post BODY (selftext). `content.text` is the title and body joined, matching how posts read on `/v1/reddit/subreddit`; `ext.title` and `ext.selftext` carry the two halves separately. Also returns score, comment count, author, author avatar, images or video, thumbnail, and creation timestamp. `engagement.shares` carries Reddit's share count. `ext.selftext` is null on link posts, which have no body. For the post's comments use `/v1/reddit/post/comments`.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["reddit"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "reddit",
@@ -4598,6 +5181,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the full threaded comment tree for a Reddit post. Nested replies are auto-expanded by following upstream pagination, so a single call returns the deep tree (not just top-level comments). Each comment includes the author, body, score, direct-reply count, creation timestamp, its nesting depth at `ext.depth`, and a recursive `replies[]` array. Comment bodies are Reddit's own markdown source, so `comment.text` can contain markdown such as `**bold**` and `[label](url)`. Comment ids are unique within a response: cursor windows can re-offer a boundary node, and those are de-duplicated before the tree is returned. Very large threads are bounded, and `data.truncated` tells you whether more of the thread exists than the response carries. It is not simply a record of our own paging: a response that reached the source's end of the thread is still reported as `truncated: true` when it falls far short of the post's own comment count, because that end is the end of one ranking window rather than the end of the thread. So `truncated: true` can arrive with no `next_cursor`, which means the thread is incomplete and this endpoint cannot fetch you the rest. A whole thread pages from one top-level cursor, so `ext.replies_cursor` on an individual branch is rare. `truncated: false` means the response looks complete against the post's own count, which is normally still higher than the comments you receive because Reddit counts removed, deleted, and filtered replies that no listing returns to anyone. `items[]` can also contain a comment whose own parent was removed upstream: it sits at the top level beside the real roots, and `parent_id` is what separates them, because a root's `parent_id` equals its `post_id` and an orphan's does not.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["reddit"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "reddit",
@@ -4623,6 +5208,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches for posts within a specific subreddit. Returns matching posts with titles, scores, comment counts, permalinks and, where the row carries them, the post body at `ext.selftext`, the author's avatar, structured media, the upvote ratio, the flair and Reddit's own content language. One result page is assembled from more than one index: the first rows are the community's own relevance ranking, unchanged and in its original order, and further rows are appended from Reddit's search index scoped to the same community. A page holds up to 25 posts and the exact count varies between calls, so read the length of `items` rather than assuming a number — pages of about 7 are what you get when only the first index answers. Because the page spans two indexes, three leaves are reported for only part of it and are `null` on the rest: `post.flags.spoiler`, `post.engagement.shares` and `post.engagement.saves`. A `null` there means the index that returned that row does not report the field, never that the value is false or zero, so do not aggregate over them. Omitting `query` returns the community listing from the first index alone, because Reddit's scoped search needs terms to match. `include_body=true` is still accepted and rarely needed now that bodies arrive on the rows themselves: it costs 1 extra credit per post that actually comes back with a body, up to 25 per page, and refunds every credit it does not spend. Ranking is a voice-of-customer sweep rather than precision retrieval, so expect some off-topic matches on short queries, and use quoted phrases to tighten them.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["reddit"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "reddit",
@@ -4639,8 +5226,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Author",
     summary: "Get a Reddit user profile",
     description:
-      "Returns one Reddit account by username: the four-way karma split, the cake day, the bio, the avatar and banner, the trophy count and the profile title. `author.likes_count` is TOTAL karma; the split that Reddit users actually reason about is at `ext.post_karma`, `ext.comment_karma` and `ext.awardee_karma`, and the three sum to the total. `author.joined_at` is the cake day. `author.display_name` carries Reddit's `t2_` fullname, which is the same value and the same encoding this API puts on `post.author.display_name` and `comment.author.display_name`, so a profile joins to that account's posts and comments on one field. `author.followers` is null and stays null: Reddit publishes no public follower count for an account, and the upstream's own `subscribers` field is 0 on every account measured, so reporting it would publish a hard zero as though it were a measurement. Verification, moderator and employee flags are not available on this surface and are null rather than guessed. A username that does not exist returns 404 and costs nothing. Usernames are matched case-insensitively.",
+      "Returns one Reddit account by username: the four-way karma split, the cake day, the bio, the avatar and banner, the trophy count and the profile title. `author.likes_count` is TOTAL karma; the split that Reddit users actually reason about is at `ext.post_karma`, `ext.comment_karma` and `ext.awardee_karma`, and the three sum to the total. `author.joined_at` is the cake day. `author.display_name` carries Reddit's `t2_` fullname, which is the same value and the same encoding this API puts on `post.author.display_name` and `comment.author.display_name`, so a profile joins to that account's posts and comments on one field. `author.url` is the canonical `https://www.reddit.com/user/<name>/` profile, derived from the username rather than fetched. `author.followers` is Reddit's public follower count for the account (`subscribers` on the upstream). It is a real number: accounts nobody follows report 0, and creator accounts report a non-zero count (measured 09/09/2026: u/GallowBoob 33899, u/spez 0, corroborated by a second independent source on the same day). Reddit publishes no following count and no submission count on this surface, so `author.following` and `author.posts_count` stay null. Verification, moderator and employee flags are not available on this surface and are null rather than guessed. A username that does not exist returns 404 and costs nothing. Usernames are matched case-insensitively.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["reddit"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "reddit",
@@ -4650,7 +5239,8 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "handle", required: true, description: "Reddit username without the u/ prefix. Case-insensitive.", example: "spez" },
     ],
     optionalParams: [
-      { name: "sort", type: "enum", enumValues: ["hot", "new", "top"], description: "Sort order for the account's submissions." },
+      { name: "sort", type: "enum", enumValues: ["hot", "new", "top"], description: "Sort order for the account's submissions. `top` defaults to the all-time window; pass `timeframe` to narrow it." },
+      { name: "timeframe", type: "enum", enumValues: ["all", "year", "month", "week", "day", "hour"], description: "Only return posts from this window. Applied on `sort=top`. Omitted `sort=top` is treated as `timeframe=all` so the documented call is not an empty page." },
       { name: "cursor", type: "string", description: "Cursor to get more results. Get 'cursor' from the previous response." },
     ],
     oneOfGroups: [],
@@ -4663,6 +5253,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the posts a Reddit account has submitted, newest first by default, up to 25 per page. Each row carries the title, the body at `ext.selftext`, the score, the comment count, the upvote ratio, the flair, Reddit's own content language, the author avatar, structured media at `content.media_urls` and the permalink. `ext.subreddit` is the field that matters most on this lane and is populated on every row: a person's submissions span communities by construction, so it is the only thing that says where each post landed. Paginate with `cursor` from the previous response's `pagination.next_cursor`. `post.engagement.shares` is null here, as on every Reddit list endpoint — the upstream sends a share-BUTTON count on this shape and that is a different metric from the crosspost count this field means, so it is not published. An account with no submissions returns an empty list and is refunded; an account that does not exist is indistinguishable from one with no posts on this upstream and returns the same empty list, so check `/v1/reddit/profile` when you need to tell them apart.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["reddit"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "reddit",
@@ -4685,6 +5277,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the comments one Reddit account has written, newest first, read from the account's own listing rather than from a search index. **That distinction is the whole endpoint.** `/v1/reddit/search/comments?query=author:username` costs 1 credit for a page and looks like the same thing, but it reads Reddit's search index, which holds a small relevance-ranked subset: measured 07/09/2026 on one account, the search route returned 9 comments and then stopped, while this endpoint returned 60 in chronological order reaching back to 2021. **Start with the search route.** Come here when you need the history rather than a sample. Each row carries the comment text, the score, the permalink, the post it sits under at `post_id` and `ext.post_url`, the community at `ext.subreddit`, and a real `parent_id` — `t1_` on a reply and `t3_` on a top-level comment, so a comment whose `parent_id` equals its `post_id` is top-level. `ext.is_submitter` is Reddit's OP badge, true when the commenter also wrote the post they are replying under, and `ext.controversiality` is Reddit's own flag for a comment with roughly balanced up and down votes, which the score alone hides. `limit` is a real depth control and not a page size: a higher `limit` reaches further back, at the same speed. There is no cursor, because the depth control makes one unnecessary — ask for the depth you want in one call. **Pricing is metered at 2 credits per comment RETURNED**, so an account with fewer comments than your `limit` costs less than you asked for. A username that does not exist returns an empty list and costs nothing, and so does a real account that has never commented — this upstream cannot tell them apart, so call `/v1/reddit/profile` when you need to know which it was.",
     singlePage: "The upstream has no cursor. `limit` is a depth control, so a deeper history is one larger call rather than more pages; use `before` to window past the 100-comment ceiling.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["reddit"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "reddit",
@@ -4707,6 +5301,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches Reddit's COMMENT index directly, so a phrase that only ever appears three levels deep inside someone's reply is reachable in one call. Every other comment surface on this API needs a post you have already found; this one does not. Each hit arrives with its parent post inline, because a bare comment body off a search index is unreadable without it: `ext.post_title`, `ext.subreddit`, `ext.subreddit_subscribers`, `ext.post_score`, `ext.post_comment_count`, `ext.post_author`, `ext.post_published_at`, `ext.post_flair`, `ext.post_url` and `ext.content_language`. Reddit's search operators work in `query`, which is where most of the power is: `author:username` returns that account's indexed comments, `subreddit:name terms` scopes the sweep to one community, and quoted phrases tighten a loose match. `comment.parent_id` is null on this lane and that is honest rather than missing — the upstream does not say whether a hit is a top-level comment or a deep reply, and this API does not guess. Up to 25 hits per page; paginate with `cursor`. A query that matches nothing still returns a full page of loosely-related comments rather than an empty list, which is Reddit's own search behaviour on both of this API's Reddit upstreams, so judge relevance on the rows rather than on the count.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["reddit"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "reddit",
@@ -4717,17 +5313,24 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     optionalParams: [
       { name: "cursor", type: "string", description: "Cursor to get more results. Get 'cursor' from the previous response." },
+      { name: "include", type: "enum", enumValues: ["details"], description: "Set to `details` (one token only) to fill `author.joined_at`, `author.ext.weekly_active_users`, `author.ext.weekly_contributions`, `author.ext.rules_text` and `author.ext.language` on every row in this one call (a row the details lookup's main source cannot answer gets only the creation date and the language, and is still billed). Holds 1 credit per row (at most 25, or `limit`) and keeps only the rows filled from a fresh lookup; rows already in cache and rows that could not be filled are refunded, so the most a call can cost is 1 + rows. Adds 3 to 9 seconds on a fresh page (never more than 12) and nothing when the rows are already cached; read `data.hydration` for the rows, the credits held and kept, and the time." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 25, description: "Take the top N communities of the page (1 to 25). With `include=details` it also caps the extra credits at N, so `limit=5&include=details` holds 6 credits, not 26. It is not a page size: the cursor still advances past the whole page, so rows beyond N are not returned by the next page." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 26, description: "1 credit for the page. include=details holds 1 credit per row, at most 25 (or `limit`), and keeps only the rows filled from a fresh lookup, so a page is at most 26 credits; rows served from cache are free, unfilled rows are refunded, and a repeat within the cache window costs 0." },
     archetype: "AuthorList",
     summary: "Find subreddits by topic",
     description:
-      "Finds communities by topic. Every other Reddit endpoint on this API needs you to already know the subreddit you want; this is the one that answers which communities discuss a subject. Returns up to 25 communities with the name, the subscriber count, the description, the icon, the NSFW flag and the community URL. `author.id` is the bare community name, which is exactly what `/v1/reddit/subreddit`, `/v1/reddit/subreddit/details` and `/v1/reddit/subreddit/search` take as their `subreddit` parameter, so a discovery call feeds a listing call with no re-mapping in between. The row is the same Author shape `/v1/reddit/subreddit/details` returns, so the fields that surface only there — the rules text, weekly active users, weekly contributions and the community language — are present as nulls rather than absent keys. Note the name: this is `subreddits/search` and it finds COMMUNITIES, where the singular `subreddit/search` searches posts INSIDE one community. Paginate with `cursor`. A query that matches nothing still returns communities rather than an empty list, which is Reddit's own search behaviour, so judge relevance on the rows.",
-    pagination: { style: "cursor", nativeParam: "cursor" },
+      "Finds communities by topic. Every other Reddit endpoint on this API needs you to already know the subreddit you want; this is the one that answers which communities discuss a subject. Returns up to 25 communities with the name, the subscriber count, the description, the icon, the NSFW flag and the community URL. `author.id` is the bare community name in Reddit's own casing, which is exactly what `/v1/reddit/subreddit`, `/v1/reddit/subreddit/details` and `/v1/reddit/subreddit/search` take as their `subreddit` parameter, so a discovery call feeds a listing call with no re-mapping in between. The row is the same Author shape `/v1/reddit/subreddit/details` returns. The search surface publishes nothing else, so on a plain call `author.joined_at`, `author.ext.weekly_active_users`, `author.ext.weekly_contributions`, `author.ext.rules_text` and `author.ext.language` are null on every row. Send `include=details` and every row is joined, in the same call, to the details lookup that carries them: the community's creation date, weekly active users, weekly contributions and rules land on each row (rules stay null for a community that publishes none), and the language on most rows (it comes from a second source that can miss a row on a busy page, so treat it as usually present). When the details lookup's main source cannot answer a row, its second source still fills the creation date and the language and that row is billed as filled, but the weekly numbers and the rules stay null on it; `data.hydration` counts it among the filled rows. Cost: 1 credit for the page plus 1 credit per row filled from a fresh lookup (25 rows, so 26 at most); rows already in cache are filled for free, rows that could not be filled are refunded, and a repeat of the same call within the cache window is 0. Time: a plain call is about 1 second; `include=details` adds 3 to 9 seconds on a fresh page (the lookups run in parallel and the call waits for the slowest, never more than 12 seconds) and nothing when the rows are already cached. `limit=N` (1 to 25) takes the top N communities of the page and, with `include`, caps the extra credits at N. The response carries a `hydration` block itemising rows, lookups, cache hits, credits and milliseconds. The subscriber count on a search row is the search index's own figure; the join never overwrites a value the row already carries. Note the name: this is `subreddits/search` and it finds COMMUNITIES, where the singular `subreddit/search` searches posts INSIDE one community. Paginate with `cursor`. A query that matches nothing still returns communities rather than an empty list, which is Reddit's own search behaviour, so judge relevance on the rows.",
+    pagination: { style: "cursor", nativeParam: "cursor", limitParam: "limit" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["reddit"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
+    hydration: [
+      { param: "include", token: "details", sibling: "reddit/subreddit/details", fills: ["author.joined_at", "author.ext.weekly_active_users", "author.ext.weekly_contributions", "author.ext.rules_text", "author.ext.language"], creditsPerItem: 1, maxItems: 25, rowLimitParam: "limit", cacheSibling: true, warnings: { unavailable: "details_unavailable", partial: "details_partial" } },
+    ],
   },
   {
     platform: "reddit",
@@ -4751,6 +5354,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches Reddit's media-scoped index: the posts a keyword search would return, filtered to those that actually carry an image, a video or a gallery. Use it when you want visual content for a topic and do not want to filter a mixed page yourself. Up to 25 posts per page, each with the title, the score, the comment count, the subreddit, the upvote ratio, the flair, the author avatar, the thumbnail and the media at `content.media_urls` — an array on a gallery post and a single-element array otherwise. Reddit's operators work in `query` here too, so `subreddit:name terms` scopes the sweep to one community. `timeframe` applies on `sort=relevance`, `sort=top` and `sort=comment_count`; it has no effect on `sort=new`, which is already newest-first. Paginate with `cursor`. A query that matches nothing still returns loosely-related media posts rather than an empty list, which is Reddit's own search behaviour.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["reddit"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "reddit",
@@ -4771,6 +5376,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the transcript for a Reddit video post or direct `v.redd.it` URL when Reddit exposes a VTT caption file. Includes raw WebVTT in `raw_vtt` plus a parsed plain-text transcript. When Reddit doesn't expose captions, `transcript` is `null` and `transcriptNotAvailable` is `true`: credits are only deducted when a transcript is returned.",
     cache: { category: "immutable", ttlSeconds: 2592000 },
+    tags: ["reddit"],
   },
   {
     platform: "reddit",
@@ -4791,7 +5397,7 @@ export const ENDPOINTS: Endpoint[] = [
     csvConstraints: { "include": { max: 2, enumValues: ["subreddits", "comments"] } },
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 5, maxCost: 9 },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 5, maxCost: 9, description: "1 credit for the search page plus 1 per thread SUCCESSFULLY expanded, with a floor of 5. The call holds `1 + threads` up front (the 8-thread maximum holds 9) and refunds every thread that failed to expand, so the floor is what most sweeps cost. Running the same sweep by hand - one reddit/search plus eight reddit/post/comments calls - costs the same 9 at best and gives you no subreddit rollup" },
     archetype: "Analytics",
     summary: "Reddit VoC sweep: one keyword → threads across all of Reddit with subreddit attribution and top comments inline.",
     description:
@@ -4799,8 +5405,10 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sse",
     streaming: "accept-header",
     pagination: { style: "cursor", nativeParam: "cursor" },
+    paginatable: true,
     cache: { category: "search", ttlSeconds: 120 },
     family: "prism",
+    tags: ["reddit", "prism"],
   },
   // --- threads (6 endpoints) ---
   {
@@ -4820,6 +5428,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns public profile information for a Threads user including follower count, bio, profile picture URL, verification status, and whether the account is private. `author.url` is the account's Threads permalink. The external website set in the bio is returned at `author.ext.bio_link` (null when the account has not set one). Threads does not publish a following count, a post count, a total like count or a join date on this surface, so those four leaves are always null.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["threads"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "threads",
@@ -4829,18 +5439,25 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "handle", required: true, description: "Threads username without the @ symbol", example: "zuck" },
     ],
     optionalParams: [
-      { name: "trim", type: "boolean", description: "Ask the upstream for a stripped record. This is a real shape change, not just less whitespace: a trimmed row carries only the id, text, shortcode, like count, timestamp and author, so media, reply count, share count, view count, topic tag, pinned flag and quoted post all come back null. Same 1 credit either way, so send it only when the text and the like count are all you need." },
+      { name: "trim", type: "boolean", description: "Ask the upstream for a stripped record. This is a real shape change, not just less whitespace: a trimmed row carries only the id, text, shortcode, like count, timestamp and author, so media, reply count, share count, view count, topic tag, pinned flag and quoted post all come back null. Same 1 credit either way, so send it only when the text and the like count are all you need. Ignored when `limit` is above 15, because the deeper source has no trimmed mode." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 50, description: "How many posts to collect, 1 to 50. Leave it off, or send 15 or less, and nothing changes: you get the bundled window for exactly 1 credit. Above 15 the posts come from a deeper source and the call is metered at 3 credits per post actually returned, so an account with only 20 public posts costs 60 credits however high you set this." },
+      { name: "include", type: "enum", enumValues: ["engagement"], description: "Send `engagement` to fill `engagement.views` and `post.author.display_name` on each post of the default window by looking it up on `/v1/threads/post` in the same call. 1 credit per post filled from a fresh lookup (15 at most); posts served from that lookup's cache (10 minutes) and posts it could not fill are free. Adds 4 to 12 seconds, never more than 15. One token only: `engagement`. Beside a `limit` above 15 it costs nothing, because those rows already carry both fields." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 165, pageSize: 3, description: "1 credit for the bundled window of about 15 posts, which is what a call with no `limit`, or `limit` at 15 or below, costs. Above 15 the deeper lane is metered at 3 credits per post RETURNED: the call holds `limit x 3` up front (the 50 maximum holds 150) and refunds down to what came back. With `include=engagement` the call also holds 1 credit per post of the window (15) and keeps 1 for each post whose view count or display name it filled from a fresh lookup; posts served from the post lookup's cache (10 minutes) are free and the rest is refunded, so the default window costs 16 at most. Beside a `limit` above 15 the deeper rows already carry both fields, so the 15 are refunded in full" },
     archetype: "PostList",
     summary: "List Threads user posts",
     description:
-      "Returns the most recent posts from a Threads user (typically ~15 per call). Each post includes the text content, like count, reply count, repost count, media attachments, and creation timestamp. Carousel posts return every slide as an array in `content.media_urls`; video posts return a playable video URL there with the cover frame in `content.thumbnail_url`. Posts filed under a Threads topic tag also carry that tag name at `post.ext.topic_tag` (e.g. `bali`, `dokter gigi`) with its stable id at `post.ext.topic_tag_id`; both are absent on untagged posts, which are the majority. Quote posts are fully resolved: a post that quotes another usually carries no caption or media of its own, so the text and video shown on its page are returned under `post.ext.quoted_post` as `{ id, url, author, text, media_urls, thumbnail_url }`. That attachment belongs to a different account, so it is kept there rather than merged into `content`, and `post.content` always stays this post's own content. The field is absent on posts that are not quote posts. `post.flags.pinned` says whether the author pinned the post to their profile. `post.ext.quote_count` and `post.ext.reshare_count` complete the reshare picture that `engagement.shares` (plain reposts) only starts. `engagement.views` is null here: Threads publishes a view count only on the single-post endpoint, so fetch `/v1/threads/post` for the one post you need it on. Pagination is not supported: the upstream returns one fixed window of about 15 posts and exposes no depth parameter (eight spellings probed live on 04/09/2026, all returned the same 15 rows). For deeper history, use `/v1/threads/search` with a date window or `/v1/search/everywhere`.",
-    singlePage: "Upstream returns one fixed window of about 15 posts and exposes no depth lever: cursor, next_cursor, page, offset, limit, amount, count and max were each probed live on 04/09/2026 and every one returned the same 15 rows. For deeper history use `/v1/threads/search` with a date window.",
+      "Returns the most recent posts from a Threads user. By default you get the window the upstream bundles, typically about 15 posts, for 1 credit. Each post includes the text content, like count, reply count, repost count, media attachments, and creation timestamp. Carousel posts return every slide as an array in `content.media_urls`; video posts return a playable video URL there with the cover frame in `content.thumbnail_url`. Posts filed under a Threads topic tag also carry that tag name at `post.ext.topic_tag` (e.g. `bali`, `dokter gigi`) with its stable id at `post.ext.topic_tag_id`; both are absent on untagged posts, which are the majority. Quote posts are fully resolved: a post that quotes another usually carries no caption or media of its own, so the text and video shown on its page are returned under `post.ext.quoted_post` as `{ id, url, author, text, media_urls, thumbnail_url }`. That attachment belongs to a different account, so it is kept there rather than merged into `content`, and `post.content` always stays this post's own content. The field is absent on posts that are not quote posts. `post.flags.pinned` says whether the author pinned the post to their profile. `post.ext.quote_count` and `post.ext.reshare_count` complete the reshare picture that `engagement.shares` (plain reposts) only starts. A call with no `limit`, or `limit` at 15 or below, is that same window for 1 credit, and `engagement.views` is null on those rows: the default source does not publish a view count on list items. Send `limit` above 15, up to 50, to collect more of the same feed from a second source: measured 09/09/2026 on `@zuck`, the default call returned 15 and `limit=50` returned 32 top-level posts going back to 25/09/2025. That deeper read is metered at 3 credits per post returned, and it is the lane that carries `engagement.views` and `post.author.display_name` (the default window has neither). To get both on the default window instead, send `include=engagement`: each post is looked up on `/v1/threads/post` by its permalink in the same call, and only the view count and the display name are copied onto the row, so nothing already on it changes and `computed.engagement_rate` is filled from the views it gains. It costs 1 credit per post filled, adds 4 to 12 seconds (never more than 15), and a `data.hydration` block reports the rows looked up, filled and served from cache and the credits held and kept. A post the lookup could not fill is refunded and named by `data._warnings: [\"engagement_partial\"]`. A response is still a single page with no cursor. For a keyword search of older posts, use `/v1/threads/search` with a date window or `/v1/search/everywhere`.",
+    singlePage: "Neither source exposes a cursor. The default call is the fixed ~15-post window; `limit` above 15 collects more posts from a second source in one shot, but still returns a single page with nothing to resume from.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["threads"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "engagement", sibling: "threads/post", fills: ["post.engagement.views", "post.author.display_name"], creditsPerItem: 1, maxItems: 15, cacheSibling: true, warnings: { unavailable: "engagement_unavailable", partial: "engagement_partial" } },
+    ],
   },
   {
     platform: "threads",
@@ -4861,6 +5478,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns detailed information about a specific Threads post including the text content, like count, reply count, repost count, media attachments, author info, and creation timestamp. Carousel posts return every slide as an array in `content.media_urls`; video posts return a playable video URL there with the cover frame in `content.thumbnail_url`. A post filed under a Threads topic tag also carries that tag name at `post.ext.topic_tag` (e.g. `bali`, `dokter gigi`) with its stable id at `post.ext.topic_tag_id`; both are absent on untagged posts. Quote posts are fully resolved: a post that quotes another usually carries no caption or media of its own, so the text and video shown on its page are returned under `post.ext.quoted_post` as `{ id, url, author, text, media_urls, thumbnail_url }`. That attachment belongs to a different account, so it is kept there rather than merged into `content`, and `post.content` always stays this post's own content. The field is absent on posts that are not quote posts. This is the only Threads endpoint that carries `engagement.views`. `post.id` is the same bare numeric id the list endpoints return for this post, and `post.url` is its canonical permalink, so a result from here joins directly against `/v1/threads/user/posts` and `/v1/threads/search`.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["threads"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "threads",
@@ -4876,18 +5495,25 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "cursor", type: "string", description: "Opaque cursor from a prior response's pagination.next_cursor, passed back verbatim, to fetch the next (older) result window. It carries your date bounds, so paging cannot escape the period you asked for. A request that sends a cursor is never query-relaxed." },
       { name: "limit", type: "integer", minimum: 1, maximum: 100, description: "Collect AT LEAST this many unique posts in one call (1-100). This is a collection target, not a page size: the API walks whole result windows server-side until it has collected this many (or the query runs dry), so the response usually carries somewhat more than you asked for and never fewer unless the query ran out. Nothing you paid for is trimmed away. Billed 1 credit per window consumed (about 15-20 posts each), with the unused window budget refunded. Omit for a single window. BUDGET FOR THE WALL CLOCK: the windows run one after another, at roughly 3.4 seconds each, so a high limit is a long request. Measured on production 07/09/2026, cache-cold: no limit 3.5s for 20 posts, limit=30 7.3s for 37, limit=50 10.2s for 55, limit=100 19.5s for 111. If your HTTP client defaults to a 10-second timeout, limit=50 and above will not fit inside it. Either raise the client timeout, or ask for a smaller limit and page with pagination.next_cursor, which costs the same credits for the same posts." },
       { name: "expand", type: "boolean", description: "Set to false to search the exact phrase only. Defaults to true, which relaxes a query Threads does not recognise into its adjacent word pairs and merges the results, billing 1 credit per relaxed search that returned posts inside your date window. Ignored on a request that carries a cursor." },
+      { name: "include", type: "enum", enumValues: ["engagement"], description: "Send `engagement` to fill `engagement.views` and `post.flags.pinned` on the first 20 posts by looking each one up on `/v1/threads/post` in the same call. 1 credit per post whose view count or display name was filled from a fresh lookup (20 at most); posts served from that lookup's cache (10 minutes) are free, and so is a post Threads has published no view count for yet, which still gets its pinned flag. Adds 3 to 12 seconds, never more than 12. One token only: `engagement`. Not accepted with a `limit` above 20; page with the cursor for more." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 11, pageSize: 15 },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 26, pageSize: 15, description: "1 credit per result window. A call with no `limit` is one window and costs exactly 1. With `limit` set the walker consumes `ceil(limit / 15)` windows - 4 for limit=50, 7 for the 100 maximum - holds that many up front and refunds every window it did not need. Query relaxation can add up to 4 more windows on a page-1 request, billed only for the relaxed searches that returned posts and refunded for the ones that did not; send `expand=false` to hold none of them, and note that a request carrying a cursor never relaxes, so a pagination loop's last hop costs nothing extra. With `include=engagement` the call also holds 20 credits and keeps 1 for each of the first 20 posts whose view count or display name it filled from a fresh lookup; posts served from the post lookup's cache (10 minutes) are free, a post Threads has published no view count for is free (it still gets its pinned flag), and the rest is refunded" },
     archetype: "PostList",
     summary: "Search Threads posts",
     description:
-      "Searches Threads for posts matching a keyword query. Returns a list of matching posts with text content, like counts, author info, and creation timestamps. Posts filed under a Threads topic tag also carry that tag name at `post.ext.topic_tag` (e.g. `bali`, `dokter gigi`) with its stable id at `post.ext.topic_tag_id`, so you can group or filter results by topic client-side; both are absent on untagged posts, which are the majority. Threads exposes no tags-only search mode upstream, so this stays a keyword query. Search rows carry the same media shape as the other post lanes: carousel posts return every slide as an array in `content.media_urls`, video posts return a playable video URL there with the cover frame in `content.thumbnail_url`, and a quote post's attached content is recoverable at `post.ext.quoted_post`. `post.ext.quote_count` and `post.ext.reshare_count` complete the reshare picture that `engagement.shares` only starts, and `engagement.views` is null on this lane (Threads publishes it only on `/v1/threads/post`). Each response is one result window (typically 15-20 posts); page deeper by sending back pagination.next_cursor as cursor, or set limit (1-100) to have the API walk multiple windows server-side until it has collected at least that many unique posts, billed per window consumed (1 credit each, unused window budget refunded). limit is a collection target rather than a page size, so a response usually carries somewhat more than you asked for; nothing you were billed for is trimmed away. Those windows run sequentially at roughly 3.4 seconds each, so limit buys posts with wall clock as well as credits: measured 07/09/2026 cache-cold, a single window is 3.5s while limit=50 is 10.2s and limit=100 is 19.5s. Set your client timeout above the limit you ask for, or page with the cursor instead. start_date and end_date bound the search to a period; the cursor walk stays inside those bounds. Multi-word queries are handled for you: Threads matches a search against the topic tags it already knows rather than scoring individual terms, so a longer phrase it does not recognise returns nothing at all rather than fewer results. When that happens the query is automatically relaxed into its adjacent word pairs (for example `cari vendor mesin kopi jakarta` becomes `cari vendor`, `vendor mesin`, `mesin kopi` and `kopi jakarta`), those searches run in parallel, and the results come back merged, de-duplicated and ordered by how many of your terms each post contains. You are billed 1 credit for each relaxed search that returned posts and nothing for the ones that did not, so a query that already worked costs exactly what it always did. An expanded response is a single page and carries no pagination cursor, and `data._warnings` names every sub-query that ran. Relaxation respects start_date and end_date: posts outside your window are dropped from every sub-query, and a sub-query left with nothing inside the window is not billed. It also never fires on a request that carried a cursor, so the last hop of a pagination loop is the honest end of the walk rather than a surprise page of loosely related posts. Send expand=false to search the exact phrase only.",
+      "Searches Threads for posts matching a keyword query. Returns a list of matching posts with text content, like counts, author info, and creation timestamps. Posts filed under a Threads topic tag also carry that tag name at `post.ext.topic_tag` (e.g. `bali`, `dokter gigi`) with its stable id at `post.ext.topic_tag_id`, so you can group or filter results by topic client-side; both are absent on untagged posts, which are the majority. Threads exposes no tags-only search mode upstream, so this stays a keyword query. Search rows carry the same media shape as the other post lanes: carousel posts return every slide as an array in `content.media_urls`, video posts return a playable video URL there with the cover frame in `content.thumbnail_url`, and a quote post's attached content is recoverable at `post.ext.quoted_post`. `post.ext.quote_count` and `post.ext.reshare_count` complete the reshare picture that `engagement.shares` only starts. `engagement.views` and `post.flags.pinned` are null on a plain call, because Threads publishes them only on `/v1/threads/post`; send `include=engagement` and the first 20 posts are looked up there by permalink in the same call, and only those two leaves (plus a missing display name) are copied onto each row. You are billed 1 credit for each post whose view count or display name was filled. Threads publishes a view count only once it has one, so a post that is minutes old usually comes back without one: that row still gets its pinned flag, and it is free. The join adds 3 to 12 seconds (never more than 12), and a `data.hydration` block reports the rows looked up, filled and served from cache and the credits held and kept; a post the lookup could not read at all is refunded and named by `data._warnings: [\"engagement_partial\"]`. It is refused beside a `limit` above 20: page with the cursor instead, 20 posts a call. Each response is one result window (typically 15-20 posts); page deeper by sending back pagination.next_cursor as cursor, or set limit (1-100) to have the API walk multiple windows server-side until it has collected at least that many unique posts, billed per window consumed (1 credit each, unused window budget refunded). limit is a collection target rather than a page size, so a response usually carries somewhat more than you asked for; nothing you were billed for is trimmed away. Those windows run sequentially at roughly 3.4 seconds each, so limit buys posts with wall clock as well as credits: measured 07/09/2026 cache-cold, a single window is 3.5s while limit=50 is 10.2s and limit=100 is 19.5s. Set your client timeout above the limit you ask for, or page with the cursor instead. start_date and end_date bound the search to a period; the cursor walk stays inside those bounds. Multi-word queries are handled for you: Threads matches a search against the topic tags it already knows rather than scoring individual terms, so a longer phrase it does not recognise returns nothing at all rather than fewer results. When that happens the query is automatically relaxed into its adjacent word pairs (for example `cari vendor mesin kopi jakarta` becomes `cari vendor`, `vendor mesin`, `mesin kopi` and `kopi jakarta`), those searches run in parallel, and the results come back merged, de-duplicated and ordered by how many of your terms each post contains. You are billed 1 credit for each relaxed search that returned posts and nothing for the ones that did not, so a query that already worked costs exactly what it always did. An expanded response is a single page and carries no pagination cursor, and `data._warnings` names every sub-query that ran. Relaxation respects start_date and end_date: posts outside your window are dropped from every sub-query, and a sub-query left with nothing inside the window is not billed. It also never fires on a request that carried a cursor, so the last hop of a pagination loop is the honest end of the walk rather than a surprise page of loosely related posts. Send expand=false to search the exact phrase only.",
     pagination: { style: "cursor", nativeParam: "cursor", limitParam: "limit", limitMax: 100 },
+    paginatable: true,
     collectUntilN: "`limit` (1-100) walks successive result windows server-side, de-duplicating posts as it goes, and bills 1 credit per window consumed with the unused window budget refunded. It is not a page size.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["threads"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "engagement", sibling: "threads/post", fills: ["post.engagement.views", "post.author.display_name", "post.flags.pinned"], creditsPerItem: 1, maxItems: 20, cacheSibling: true, warnings: { unavailable: "engagement_unavailable", partial: "engagement_partial" } },
+    ],
   },
   {
     platform: "threads",
@@ -4903,13 +5529,15 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 10, pageSize: 5 },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 10, pageSize: 5, description: "1 credit for the bundled window of about 20 replies, which is what a call with no `limit`, or `limit` at 25 or below, costs. Above 25 the deeper lane is metered at 1 credit per 5 replies RETURNED: the call holds `ceil(limit / 5)` up front (the 50 maximum holds 10) and refunds down to what came back, so a post with 12 replies settles at 3 credits however high `limit` was set" },
     archetype: "CommentList",
     summary: "Get comments on a Threads post",
     description:
       "Returns the replies on a Threads post. By default you get the window Threads bundles with the post itself, typically about 20 replies, for 1 credit. Each comment carries its text, like count, direct reply count, author handle, display name, avatar and verification status, and creation timestamp. Send `limit` above 25 to collect more than that window holds, up to 50: measured 07/09/2026 on a post with 1,141 replies, the default call returned 24 and `limit=50` returned 50. The deeper read is metered at 1 credit per 5 replies returned. It comes from a different source, but every field is normalised to the same shape and the same id space before it reaches you, so a comment carries the identical `comment.id` and `comment.post_id` whatever `limit` you sent, and raising `limit` returns more of the same objects rather than a different shape. `comment.parent_id` stays null on both lanes: nothing upstream says which comment a nested reply answers. A response is still a single page with no cursor. Same upstream call as `/v1/threads/post` on the default lane, so a post and its replies cost one call each.",
     singlePage: "Neither source exposes a cursor. The default call is the fixed comment window the upstream bundles into the post payload; `limit` above 25 collects more replies from a second source in one shot, but still returns a single page with nothing to resume from.",
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["threads"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "threads",
@@ -4918,17 +5546,26 @@ export const ENDPOINTS: Endpoint[] = [
     params: [
       { name: "query", required: true, description: "Search keyword or phrase to find Threads users", example: "tech" },
     ],
-    optionalParams: [],
+    optionalParams: [
+      { name: "include", type: "enum", enumValues: ["profile"], description: "Send `profile` to fill `author.followers`, `author.bio`, `author.private` and `author.ext.bio_link` on each account by looking it up on `/v1/threads/profile` in the same call. 1 credit per account filled from a fresh lookup (12 at most, or `limit`); accounts served from that lookup's cache (15 minutes) and accounts it could not fill are free. Adds 3 to 6 seconds, never more than 12. One token only: `profile`." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 12, description: "Take the top N accounts of the page, 1 to 12. With `include=profile` it also caps the extra credits: `limit=5&include=profile` holds 6 credits, not 13. A plain call with `limit` still costs 1." },
+      { name: "include_details", type: "boolean", description: "The older spelling of `include=profile`, kept working: `include_details=true` runs the same join at the same price (1 credit per account filled, 13 at most), and `false` is the plain call. Prefer `include=profile` in new code." },
+    ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 13, description: "1 credit for the identity window, which is what a call with no `include` costs. With `include=profile` the call holds 1 credit per row of the page (12, or `limit`) and keeps 1 for each account it filled from a fresh lookup; accounts served from the profile lookup's cache (15 minutes) are free and the rest is refunded, so a call costs 13 at most" },
     archetype: "AuthorList",
     summary: "Search Threads users",
     description:
-      "Searches Threads for user accounts matching a query. Returns up to about 10 matching accounts with the handle, display name, avatar and verification status. Follower count, bio, post count and join date are NOT available on this surface: the upstream account-search index carries only the identity fields, so those leaves are null on every row. Call `/v1/threads/profile` with a handle from these results when you need the follower count. `author.url` is the account's Threads permalink, built from the handle.",
-    singlePage: "Upstream returns one fixed window of about 10 accounts with no cursor and no depth parameter.",
+      "Searches Threads for user accounts matching a query. Returns up to about 10 matching accounts with the handle, display name, avatar and verification status. A plain call is that identity window for 1 credit, and `author.followers`, `author.bio`, `author.private` and `author.ext.bio_link` stay null: the search index does not carry them. Send `include=profile` to fill them by row hydration: each account is looked up on `/v1/threads/profile` by its handle in the same call, and only those four leaves are copied onto the row, so nothing already on it changes. It costs 1 credit per account filled, adds 3 to 6 seconds (never more than 12), and a `data.hydration` block reports the rows looked up, filled and served from cache and the credits held and kept; an account the lookup could not fill is refunded and named by `data._warnings: [\"profile_partial\"]`. `limit` (1 to 12) takes the top N accounts and caps the extra credits with them. `include_details=true`, the older spelling, is the same call at the same price. Post count and join date stay null either way: Threads does not publish them. `author.url` is the account's Threads permalink, built from the handle.",
+    singlePage: "The upstream exposes no cursor. The call is the fixed ~10-account identity window; `include=profile` fills follower count, bio and the private flag on those same rows, but still returns a single page with nothing to resume from.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["threads"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
+    hydration: [
+      { param: "include", token: "profile", sibling: "threads/profile", fills: ["author.followers", "author.bio", "author.private", "author.ext.bio_link"], creditsPerItem: 1, maxItems: 12, rowLimitParam: "limit", cacheSibling: true, warnings: { unavailable: "profile_unavailable", partial: "profile_partial" } },
+    ],
   },
   // --- pinterest (5 endpoints) ---
   {
@@ -4936,22 +5573,29 @@ export const ENDPOINTS: Endpoint[] = [
     resource: "search",
     method: "GET",
     params: [
-      { name: "query", required: true, description: "Search query", example: "home decor ideas" },
+      { name: "query", required: true, description: "Keyword or phrase to search Pinterest pins for.", example: "home decor ideas" },
     ],
     optionalParams: [
-      { name: "cursor", type: "string", description: "Cursor" },
+      { name: "cursor", type: "string", description: "Cursor to get the next page. Take it from `pagination.next_cursor` on the previous response." },
       { name: "trim", type: "boolean", description: "Set to true for a trimmed down version of the response" },
+      { name: "include", type: "enum", enumValues: ["engagement"], description: "Set to `engagement` (one token only) to fill `post.engagement.saves`, `.likes` (reactions), `.comments` and `.shares` on every row in this one call. Holds 1 credit per row (at most 25, or `limit`) and keeps only the rows filled from a fresh lookup; rows already in cache and rows that could not be filled are refunded, so the most a call can cost is 1 + rows and the usual bill is lower. Adds 4 to 10 seconds on a fresh page (never more than 12) and nothing when the rows are already cached; read `data.hydration` for the rows, the credits held and kept, and the time." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 25, description: "Take the top N rows of the page (1 to 25) after the search has run. With `include=engagement` it also caps the extra credits at N: `limit=5&include=engagement` costs at most 6. It is not a page size: `next_cursor` still advances past the full page, so rows beyond N on this page are not returned by the next page." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 26, description: "1 credit for the page. include=engagement holds 1 credit per row, at most 25 (or `limit`), and keeps only the rows filled from a fresh lookup, so a page is at most 26 credits; rows served from cache are free, unfilled rows are refunded, and a repeat of the same call within the cache window costs 0." },
     archetype: "PostList",
     summary: "Search Pinterest pins",
     description:
-      "Searches Pinterest for pins matching a keyword query. Returns a list of matching pins with titles, image URLs, save counts, author info, and board details.",
-    pagination: { style: "cursor", nativeParam: "cursor" },
+      "Searches Pinterest for pins matching a keyword. Each pin includes its permalink, the original image (`post.content.media_urls`) and a thumbnail, the pinner's username, name and avatar, and the date it was pinned. `post.content.text` is the pin's title, or its description when the title is empty; many pins carry neither, so it is null on those rows. The search results themselves carry no engagement, so on a plain call `post.engagement.saves`, `.likes` (reactions), `.comments` and `.shares` are null. Send `include=engagement` and every row is joined, in the same call, to the per-pin lookup that carries them: the save count, the reaction count, the comment count and the share count land on each row. Cost: 1 credit for the page plus 1 credit per row filled from a fresh lookup (25 rows max, so 26 credits at most); rows already in cache are filled for free, rows that could not be filled are refunded, and a repeat of the same call within the cache window is 0 credits. Time: a plain call is about 2 seconds; `include=engagement` adds 4 to 10 seconds on a fresh page (the lookups run in parallel and the call waits for the slowest, never more than 12 seconds) and nothing when the rows are already cached. `limit=N` caps the rows and the credits together. The response carries a `hydration` block itemising rows, lookups, cache hits, credits and milliseconds. `post.engagement.views` is not published for search results and stays null either way. Page with cursor.",
+    pagination: { style: "cursor", nativeParam: "cursor", limitParam: "limit" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["pinterest"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "engagement", sibling: "pinterest/pin", fills: ["post.engagement.likes", "post.engagement.comments", "post.engagement.shares", "post.engagement.saves", "post.published_at"], creditsPerItem: 1, maxItems: 25, rowLimitParam: "limit", cacheSibling: true, warnings: { unavailable: "engagement_unavailable", partial: "engagement_partial" } },
+    ],
   },
   {
     platform: "pinterest",
@@ -4970,8 +5614,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Post",
     summary: "Get Pinterest pin details",
     description:
-      "Returns detailed information about a specific Pinterest pin including the title, description, image URL, save count, comment count, author info, and board details.",
+      "Returns one Pinterest pin: its text (the description, or the title when the description is empty), the original image and a thumbnail, the pinner's username, name and avatar, the save count, the reaction count, the comment count, the share count, and the date it was pinned. Many pins carry no text at all, so `post.content.text` can be null.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["pinterest"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "pinterest",
@@ -4990,6 +5636,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns how many times each URL (up to 10 per request, comma-separated) has been saved to Pinterest via the Save Button. Counts are exact-URL-string keyed: scheme, trailing slash, and query string each produce a different count. URLs are passed through verbatim, never normalized. A count of 0 can mean either 'never pinned' or 'page does not exist'. Counts come from the Pinterest Save Button embed ecosystem; pages outside it may undercount. Single page only, no pagination.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["pinterest"],
   },
   {
     platform: "pinterest",
@@ -5001,17 +5648,24 @@ export const ENDPOINTS: Endpoint[] = [
     optionalParams: [
       { name: "trim", type: "boolean", description: "Set to true for a trimmed down version of the response" },
       { name: "cursor", type: "string", description: "Cursor to get the next page of pins. Take it from `pagination.next_cursor` on the previous response." },
+      { name: "include", type: "enum", enumValues: ["engagement"], description: "Set to `engagement` (one token only) to fill `post.published_at` and `post.engagement.likes` (plus any save, comment or share count the board row lacked) on every row in this one call. Holds 1 credit per row (at most 15, or `limit`) and keeps only the rows filled from a fresh lookup; rows already in cache and rows that could not be filled are refunded, so the most a call can cost is 1 + rows. Adds 4 to 10 seconds on a fresh page (never more than 12) and nothing when the rows are already cached; read `data.hydration` for the rows, the credits held and kept, and the time." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 15, description: "Take the top N pins of the page (1 to 15). With `include=engagement` it also caps the extra credits at N: `limit=4&include=engagement` costs at most 5. It is not a page size: `next_cursor` still advances past the full page, so pins beyond N on this page are not returned by the next page." },
     ],
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 16, description: "1 credit for the page. include=engagement holds 1 credit per row, at most 15 (or `limit`), and keeps only the rows filled from a fresh lookup, so a page is at most 16 credits; rows served from cache are free, unfilled rows are refunded, and a repeat of the same call within the cache window costs 0." },
     archetype: "PostList",
     summary: "Get Pinterest board",
     description:
-      "Returns pins from a Pinterest board, roughly 15 per page. Each pin includes title, image URL, save count, and link destination. Send `pagination.next_cursor` back as `cursor` to walk the rest of the board; `has_more` goes false on the last page.",
-    pagination: { style: "cursor", nativeParam: "cursor" },
+      "Returns pins from a Pinterest board, up to 15 per page. Each pin includes its text (title, or description when the title is empty), image URL, author, and save, comment and share counts; many pins have no title or description, so the text can be null. A board page does not carry the date a pin was created, so `post.published_at` is null on a plain call, and `post.engagement.likes` (reactions) is null on pins that have no reactions. Send `include=engagement` and every row is joined, in the same call, to the per-pin lookup: the creation date lands on each row and `likes` is filled from the pin (0 when it has no reactions); counts the board already carried are kept. Cost: 1 credit for the page plus 1 credit per row filled from a fresh lookup (15 rows max, so 16 credits at most); rows already in cache are filled for free, rows that could not be filled are refunded, and a repeat of the same call within the cache window is 0 credits. Time: a plain call is usually about 5 seconds; `include=engagement` adds 4 to 10 seconds on a fresh page (the lookups run in parallel and the call waits for the slowest, never more than 12 seconds). `limit=N` caps the rows and the credits together. The response carries a `hydration` block itemising rows, lookups, cache hits, credits and milliseconds. Send `pagination.next_cursor` back as `cursor` to walk the rest of the board, with or without `include`; `has_more` goes false on the last page.",
+    pagination: { style: "cursor", nativeParam: "cursor", limitParam: "limit" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["pinterest"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
+    hydration: [
+      { param: "include", token: "engagement", sibling: "pinterest/pin", fills: ["post.engagement.likes", "post.engagement.comments", "post.engagement.shares", "post.engagement.saves", "post.published_at"], creditsPerItem: 1, maxItems: 15, rowLimitParam: "limit", cacheSibling: true, warnings: { unavailable: "engagement_unavailable", partial: "engagement_partial" } },
+    ],
   },
   {
     platform: "pinterest",
@@ -5033,6 +5687,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns boards created by a Pinterest user. Each board includes title, description, pin count, and cover image.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["pinterest"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   // --- twitch (4 endpoints) ---
   {
@@ -5052,6 +5708,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns public profile information for a Twitch streamer including display name, follower count, bio, profile image URL, broadcast language, and partner/affiliate status.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["twitch"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "twitch",
@@ -5070,6 +5728,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns detailed information about a specific Twitch clip including the title, view count, duration, creator name, broadcaster name, game name, thumbnail URL, and creation timestamp.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["twitch"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "twitch",
@@ -5092,6 +5752,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Fetches up to 100 videos for a Twitch user: id, slug, URL, embed URL, title, view count, language, duration in seconds, game info, broadcaster details with follower count, thumbnail URL, and available video qualities.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["twitch"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "twitch",
@@ -5110,6 +5772,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the upcoming stream schedule for a Twitch user: each entry includes start time, end time, title, description, and thumbnail URL.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["twitch"],
   },
   // --- snapchat (2 endpoints) ---
   {
@@ -5129,6 +5792,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns public profile information for a Snapchat user including display name, Bitmoji avatar URL, subscriber count, and bio description.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["snapchat"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "snapchat",
@@ -5150,6 +5815,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns comments on a Snapchat Spotlight snap. Each comment includes text, display name, reaction count, nested reply count, and timestamp. Page with cursor.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["snapchat"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   // --- truthsocial (3 endpoints) ---
   {
@@ -5169,6 +5836,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns public profile information for a Truth Social user including display name, follower count, following count, truth count, bio, and profile image URL.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["truthsocial"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "truthsocial",
@@ -5191,6 +5860,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a list of recent truths posted by a Truth Social user. Each truth includes the text content, like count, retruth count, reply count, media attachments, and creation timestamp.",
     pagination: { style: "cursor", nativeParam: "next_max_id" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["truthsocial"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "truthsocial",
@@ -5209,6 +5880,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns detailed information about a specific Truth Social post including the text content, like count, retruth count, reply count, media attachments, author info, and creation timestamp.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["truthsocial"],
+    responseShape: { root: "data.post" },
   },
   // --- telegram (3 endpoints) ---
   {
@@ -5229,6 +5902,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a public Telegram channel or group profile including its display name, description, avatar URL, verification status, and subscriber count. The subscriber count is exact rather than abbreviated. Private channels, invite-only groups, and channels with no public preview return 404.",
     cache: { category: "profile", ttlSeconds: 900 },
     group: "Profiles",
+    tags: ["telegram"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "telegram",
@@ -5250,6 +5925,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one page of recent public posts from a Telegram channel or group, newest page first. Each post carries its text, publish time, view count, the per-emoji reaction breakdown, and direct media URLs for photos and videos. Pass the returned cursor to walk further back through the channel's history. Page size varies because photo albums count as one post and service messages are skipped, so a short page does not mean the end of the channel: keep paging until the cursor is absent.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["telegram"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "telegram",
@@ -5268,6 +5945,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns one public Telegram post by its t.me URL, including the text, publish time, view count, the per-emoji reaction breakdown, and direct media URLs. View and reaction counts on posts are rounded by Telegram's own public preview, so use them for ranking rather than for exact deltas.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["telegram"],
+    responseShape: { root: "data.post" },
   },
   // --- kick (1 endpoint) ---
   {
@@ -5287,6 +5966,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns detailed information about a specific Kick clip including the title, view count, duration, category, creator name, channel name, thumbnail URL, and creation timestamp.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["kick"],
+    responseShape: { root: "data.post" },
   },
   // --- kwai (3 endpoints) ---
   {
@@ -5307,6 +5988,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns public profile data for a Kwai user: username, bio, avatar, verification status, and follower/following/like/post counts. Pass either `handle` or `url`.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["kwai"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "kwai",
@@ -5329,6 +6012,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a paginated list of public Kwai posts for a user: captions, media URLs, covers, engagement counts, and author info. Forward the returned `cursor` for the next page. Pass either `handle` or `url`.",
     pagination: { style: "cursor", nativeParam: "cursor", limitParam: "count" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["kwai"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "kwai",
@@ -5347,6 +6032,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns public Kwai post details: caption, video and cover URLs, view/like/comment/share counts, author info, and music metadata.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["kwai"],
+    responseShape: { root: "data.post" },
   },
   // --- tiktokshop (5 endpoints) ---
   {
@@ -5357,7 +6044,7 @@ export const ENDPOINTS: Endpoint[] = [
     optionalParams: [
       { name: "url", type: "string", description: "Full URL of the TikTok Shop product page. Provide this or `product_id`.", example: "https://www.tiktok.com/shop/pdp/goli-ashwagandha-gummies-with-vitamin-d-ksm-66-vegan-non-gmo/1729587769570529799" },
       { name: "product_id", type: "string", description: "Numeric TikTok Shop product id, as returned in `product.id` by tiktokshop/search, tiktokshop/products and tiktokshop/user/showcase. Provide this or `url`.", example: "1729587769570529799" },
-      { name: "region", type: "enum", enumValues: ["US"], description: "Region the lookup is served from. Currently US only (an upstream limitation; other regions are rejected before billing). Support for more regions is planned upstream but has no date." },
+      { name: "region", type: "enum", enumValues: ["US", "GB", "ID", "MY", "TH", "SG", "VN", "PH"], description: "ISO 3166-1 alpha-2 region for the lookup. Default US. Accepted: US, GB, ID, MY, TH, SG, VN, PH. Other values are rejected before billing." },
     ],
     oneOfGroups: [["url", "product_id"]],
     creditTier: "standard",
@@ -5366,8 +6053,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Product",
     summary: "Get TikTok Shop product details",
     description:
-      "Returns detailed information about a TikTok Shop product: full listing description, price and discount, rating, review count, brand, specifications, stock availability, seller details, shipping and delivery estimate, and images. Identify the product by `url` or by `product_id`. Region note: the upstream currently serves product lookups from the US only, so listings visible exclusively in other regional markets (for example a GB-only listing) resolve as 404. Regional coverage is available on tiktokshop/search, tiktokshop/products, and tiktokshop/product/reviews.",
+      "Returns detailed information about a TikTok Shop product: full listing description, price and discount, rating, review count, brand, specifications, stock availability, seller details (including official-shop identity, positive-feedback percent, 24-hour response rate, and lifetime units sold), shipping and delivery estimate, and images. Identify the product by `url` or by `product_id`. Region: default US. GB, ID, MY, TH, SG, VN and PH product lookups are served. Other regions are rejected before billing. tiktokshop/search, tiktokshop/products and tiktokshop/product/reviews keep the wider 16-market set.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tiktokshop"],
+    responseShape: { root: "data.product" },
   },
   {
     platform: "tiktokshop",
@@ -5390,6 +6079,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns reviews for a TikTok Shop product. Each review includes rating, text, author, buyer country, verified-purchase and incentivised-review flags, the purchased SKU, and a timestamp. Pages 10 reviews at a time through the standard `cursor` contract; `data.total` carries the product's full review count. Identify the product by `url` or by `product_id`.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["tiktokshop"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "tiktokshop",
@@ -5410,9 +6101,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "ProductList",
     summary: "List TikTok Shop products",
     description:
-      "Returns the products listed on one TikTok Shop storefront: title, images, canonical URL, price and original price, sold count, review count, rating, SKU id, and the shop's own profile (name, rating, follower count, lifetime units sold, region). Sort by best-selling (`sort_by=top`) or newest (`sort_by=new_releases`); filter by `region`. Pages through the whole catalogue via `pagination.next_cursor`, and `data.total` carries the storefront's on-sale product count.",
+      "Returns the products listed on one TikTok Shop storefront: title, images, canonical URL, price and original price, discount percent, sold count, review count, rating, SKU id, and the shop's own profile (name, rating, follower count, lifetime units sold, region). Sort by best-selling (`sort_by=top`) or newest (`sort_by=new_releases`); filter by `region`. Pages through the whole catalogue via `pagination.next_cursor`, and `data.total` carries the storefront's on-sale product count.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tiktokshop"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "tiktokshop",
@@ -5435,6 +6128,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches TikTok Shop across every storefront for products matching a keyword, in any supported market. Each result is the same canonical product object `tiktokshop/products` returns, id, title, canonical URL, images, price and original price, rating, review count, sold count, seller, plus the merchandising signals only search carries: the seller trust label, where the item ships from, promotion badges, the category breadcrumb, and the demo video when the listing has one.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["tiktokshop"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "tiktokshop",
@@ -5451,12 +6146,14 @@ export const ENDPOINTS: Endpoint[] = [
     creditTier: "standard",
     creditCost: 1,
     pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "ladder" },
-    archetype: "PostList",
+    archetype: "ProductList",
     summary: "List TikTok user showcase products",
     description:
-      "Fetches products featured in a TikTok user's public showcase: the products a creator promotes on their profile. Each product includes title, price, rating, sold count, images, and shop details. A handle that TikTok does not resolve returns 404 at no charge; a creator who exists but promotes nothing returns an empty list. Region note: the upstream currently serves showcase lookups from the US only, so a showcase whose products are visible exclusively in another regional market can return an empty list at 0 credits.",
+      "Fetches products featured in a TikTok user's public showcase: the products a creator promotes on their profile. Each row is the same canonical product object tiktokshop/products returns: title, price and original price, rating, sold count, images, SKU id, plus the requesting creator's handle under product.ext.tiktokshop.creator_handle. A handle that TikTok does not resolve returns 404 at no charge; a creator who exists but promotes nothing returns an empty list. Region note: the upstream currently serves showcase lookups from the US only, so a showcase whose products are visible exclusively in another regional market can return an empty list at 0 credits.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tiktokshop"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   // --- perplexity (1 endpoint) ---
   {
@@ -5476,6 +6173,11 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Natural-language research over the live web powered by Perplexity Sonar. Returns a synthesised answer plus the URLs Sonar cited as evidence under `data.sources`. Costs 1 credit per call. Auto-refunds on upstream failure. Best for freeform questions like 'what is the latest funding round for Anthropic' or 'summarise this week's biggest LLM releases' that need fresh, web-grounded answers: the kind of question a structured social-media call cannot answer.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["perplexity"],
+    responseFields: {
+      "answer": "Sonar's synthesised natural-language reply, grounded in the live web sources it found.",
+      "sources": "Array of URL citations Sonar used to ground the answer. Each entry is { url, title? }. May be empty for one-line factual answers.",
+    },
   },
   // --- google (10 endpoints) ---
   {
@@ -5497,9 +6199,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "SearchResult",
     summary: "Google web search",
     description:
-      "Returns Google search results for a query. Each result includes title, URL, snippet, and position.",
+      "Returns Google search results for a query. Each result includes title, URL, and a text snippet.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["google"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "google",
@@ -5518,6 +6222,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns detailed information about a specific Google advertisement including ad copy, advertiser, and format.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["google", "google-ads"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "google",
@@ -5539,6 +6245,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches the Google Ads Transparency Center for advertisers matching a query. Returns matching advertisers with `name`, `advertiser_id`, and `region`, plus their website domains. Defaults to US when `region` is omitted: pass a 2-letter country code (e.g. `AU`, `CA`) to search advertisers in another region.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["google", "google-ads"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "google",
@@ -5567,6 +6275,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns ads from a specific company/domain in the Google Ads Transparency Center. Each ad includes creative, format, and date range.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["google", "google-ads"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "google",
@@ -5587,8 +6297,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Place",
     summary: "Get a Google Business Profile",
     description:
-      "Returns the full Google Business Profile (Maps / Knowledge Panel) for a local business: name, category, rating, address, phone, coordinates, hours, attributes, and claimed status. Identify the place by keyword, cid, or place_id (cid/place_id are most reliable). Powered by DataForSEO.",
+      "Returns the full Google Business Profile (Maps / Knowledge Panel) for a local business: name, category, rating, address, phone, coordinates, hours, attributes, and claimed status. Identify the place by keyword, cid, or place_id (cid/place_id are most reliable).",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["google"],
+    responseShape: { root: "data.place" },
   },
   {
     platform: "google",
@@ -5610,9 +6322,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "ReviewList",
     summary: "Get Google extended (multi-source) reviews",
     description:
-      "Returns reviews of a place aggregated from the Google reviews element, not only Google users but reputable third-party sources (TripAdvisor, Yelp, Trustpilot). Each review carries its source domain, full text (with original-language translation), star rating, reviewer stats, and owner replies. Identify the place by keyword, cid, or place_id. Powered by DataForSEO.",
+      "Returns reviews of a place aggregated from the Google reviews element, not only Google users but reputable third-party sources (TripAdvisor, Yelp, Trustpilot). Each review carries its source domain, full text (with original-language translation), star rating, reviewer stats, and owner replies. Identify the place by keyword, cid, or place_id.",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["google"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "google",
@@ -5632,9 +6346,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "PostList",
     summary: "Get Google Business Profile posts (updates)",
     description:
-      "Returns the owner-published posts (updates) on a Google Business Profile: text, image, publish date, and any call-to-action link. Most businesses publish none; an empty result is a valid 'no posts' answer. Identify the business by keyword or cid. Powered by DataForSEO.",
+      "Returns the owner-published posts (updates) on a Google Business Profile: text, image, publish date, and any call-to-action link. Most businesses publish none; an empty result is a valid 'no posts' answer. Identify the business by keyword or cid.",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["google"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "google",
@@ -5656,9 +6372,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "CommentList",
     summary: "Get Google Business Profile questions & answers",
     description:
-      "Returns the community Q&A on a Google Business Profile: each question and its answers flattened into one comment list linked by parent_id. Identify the business by keyword, cid, or place_id. Powered by DataForSEO.",
+      "Returns the community Q&A on a Google Business Profile: each question and its answers flattened into one comment list linked by parent_id. Identify the business by keyword, cid, or place_id.",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["google"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "google",
@@ -5680,9 +6398,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "PlaceList",
     summary: "Search Google hotels",
     description:
-      "Returns hotels for a query from Google Travel: name, star rating, review score, coordinates, images, and nightly price. Dates default to next-day / one-night / two-visitors when omitted. Each hotel_identifier can be passed to GET /v1/google/hotels/info for full detail. Powered by DataForSEO.",
+      "Returns hotels for a query from Google Travel: name, star rating, review score, coordinates, images, and nightly price. Dates default to next-day / one-night / two-visitors when omitted. Each hotel_identifier can be passed to GET /v1/google/hotels/info for full detail.",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["google"],
+    responseShape: { root: "data.items[]", itemKey: "place" },
   },
   {
     platform: "google",
@@ -5702,8 +6422,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Place",
     summary: "Get Google hotel detail",
     description:
-      "Returns full detail for a hotel by its hotel_identifier (from GET /v1/google/hotels/search): description, star rating, address, phone, coordinates, amenities across 14 categories, 27 review-sentiment topics, and a multi-vendor price comparison. Powered by DataForSEO.",
+      "Returns full detail for a hotel by its hotel_identifier (from GET /v1/google/hotels/search): description, star rating, address, phone, coordinates, amenities across 14 categories, 27 review-sentiment topics, and a multi-vendor price comparison.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["google"],
+    responseShape: { root: "data.place" },
   },
   // --- amazon (8 endpoints) ---
   {
@@ -5723,6 +6445,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns product listings from an Amazon shop or storefront page including product names, prices, ratings, and images.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["amazon"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "amazon",
@@ -5746,6 +6470,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns organic Amazon search results for a keyword: title, price, list price, rating, image, and ASIN per product. Results reflect the chosen marketplace (default United States). Sponsored placements and related searches are excluded in v1. Paginate with the universal cursor parameter; pass depth instead if you need a single large page.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["amazon"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "amazon",
@@ -5764,8 +6490,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Product",
     summary: "Get an Amazon product by ASIN",
     description:
-      "Returns full product detail for an Amazon ASIN: title, brand, description, price, rating, image gallery, specifications, and variant ASINs. Powered by DataForSEO. For this product's customer reviews, call GET /v1/amazon/reviews with the same ASIN (shared upstream call).",
+      "Returns full product detail for an Amazon ASIN: title, brand, description, price, rating, image gallery, specifications, and variant ASINs. For this product's customer reviews, call GET /v1/amazon/reviews with the same ASIN (shared upstream call).",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["amazon"],
+    responseShape: { root: "data.product" },
   },
   {
     platform: "amazon",
@@ -5787,6 +6515,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the customer reviews shown on an Amazon product page (by ASIN), typically around 8 per product. Each review carries the full text, star rating, reviewer, verified-purchase flag, helpful-vote count, and any review images. A product with no on-page reviews returns a refunded empty list.",
     singlePage: "Both sources return one fixed page of on-page reviews and expose no honest pagination: /amazon/product-reviews repeats the same 8 review ids on page 1, 2 and 50 (measured 2026-08-29), and the DFS fallback controls page size by depth in a single call.",
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["amazon"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "amazon",
@@ -5808,17 +6538,19 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns every seller offering a given Amazon ASIN: seller name, price, rating, and condition (new / used / refurbished), including the buy-box winner.",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["amazon"],
+    responseShape: { root: "data.items[]", itemKey: "seller" },
   },
   {
     platform: "amazon",
     resource: "best-sellers",
     method: "GET",
     params: [
-      { name: "category", required: true, description: "Best Sellers category slug from the Amazon Best Sellers URL, for example software or amazon-devices.", example: "software" },
+      { name: "category", required: true, description: "Best Sellers category path from the Amazon Best Sellers URL: a department slug such as software or officeproduct, or a department plus node id for a subcategory, such as officeproduct/202900031 (Karten on amazon.de).", example: "software" },
     ],
     optionalParams: [
       { name: "country", type: "enum", enumValues: ["US", "GB", "CA", "DE", "FR", "IT", "ES", "JP", "IN", "MX", "BR", "AU", "NL"], description: "Amazon marketplace as an ISO 3166-1 alpha-2 country code (default US).", example: "US" },
-      { name: "type", type: "enum", enumValues: ["BEST_SELLERS", "NEW_RELEASES", "MOVERS_AND_SHAKERS", "MOST_WISHED_FOR", "GIFT_IDEAS"], description: "List type. Defaults to BEST_SELLERS.", example: "BEST_SELLERS" },
+      { name: "type", type: "enum", enumValues: ["BEST_SELLERS", "NEW_RELEASES", "MOVERS_AND_SHAKERS", "MOST_WISHED_FOR", "GIFT_IDEAS"], description: "List type: BEST_SELLERS (default), NEW_RELEASES, MOST_WISHED_FOR, GIFT_IDEAS, or MOVERS_AND_SHAKERS. MOVERS_AND_SHAKERS currently returns an empty list at 0 credits on US, GB and DE, because Amazon itself shows no Movers and Shakers rows. A category with no list of the requested type also returns empty and free.", example: "BEST_SELLERS" },
       { name: "page", type: "integer", minimum: 1, maximum: 100, description: "Page number, starting at 1. Prefer the universal cursor parameter." },
     ],
     oneOfGroups: [],
@@ -5828,9 +6560,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "ProductList",
     summary: "Get Amazon Best Sellers in a category",
     description:
-      "Returns ranked Amazon Best Seller listings for a category: ASIN, title, price, rating, and image. Pass type to switch to New Releases, Movers and Shakers, Most Wished For, or Gift Ideas. Amazon serves up to two pages of 50; a page past the last typically 503s and is refunded.",
+      "Returns ranked Amazon Best Seller listings for a category: ASIN, title, price, rating, and image. Pass type to switch to New Releases, Most Wished For, or Gift Ideas. Movers and Shakers is accepted but currently returns an empty list at 0 credits, because Amazon publishes no Movers and Shakers rows on the marketplaces we checked. Amazon serves up to two pages of 50; a page past the last typically 503s and is refunded.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["amazon"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "amazon",
@@ -5850,6 +6584,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns Amazon deals currently on the deals page: title, deal price, list price, savings, and the ASIN to look up with GET /v1/amazon/product.",
     singlePage: "The deals feed returns one window of current deals with no page parameter on this source.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["amazon"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "amazon",
@@ -5870,6 +6606,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns one Amazon seller by seller id: name, store URL, rating, ratings count, and business name. Seller ids appear on offer rows from GET /v1/amazon/sellers.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["amazon"],
+    responseShape: { root: "data.seller" },
   },
   // --- google_shopping (5 endpoints) ---
   {
@@ -5894,9 +6632,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "ProductList",
     summary: "Search Google Shopping products",
     description:
-      "Searches Google Shopping for products matching a keyword. Returns a unified ProductList with title, seller, price (current/original/currency), rating, image URLs, and the opaque product identifiers (id, ext.gid, ext.data_docid) required to fetch product detail, reviews, or sellers. Sourced from DataForSEO's task-based Merchant/Google API; the async lifecycle is handled server-side, so this is an ordinary synchronous request. First calls take ~20-30s, then serve from cache.",
+      "Searches Google Shopping for products matching a keyword. Returns a unified ProductList with title, seller, price (current/original/currency), rating, image URLs, and the opaque product identifiers (id, ext.gid, ext.data_docid) required to fetch product detail, reviews, or sellers. Read from a task-based upstream; the async lifecycle is handled server-side, so this is an ordinary synchronous request. First calls take ~20-30s, then serve from cache.",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["google_shopping"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "google_shopping",
@@ -5919,6 +6659,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the full detail for a single Google Shopping product: title, description, rating, image gallery, feature bullets, specifications (grouped name/value), and product variations. Pass any one of the opaque identifiers (product_id, gid, or data_docid) returned by /v1/google_shopping/product-search: all three are recommended for accuracy.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["google_shopping"],
+    responseShape: { root: "data.product" },
   },
   {
     platform: "google_shopping",
@@ -5944,6 +6686,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a unified ReviewList for a Google Shopping product, aggregated across retailers (each review's `source` is the hosting retailer domain). Each review carries the title, full text, star rating, author (when present), images, and publication date. Pass the product's gid (from product-search); product_id and data_docid are recommended for accuracy. Products with no Google Shopping reviews return 404 (auto-refunded).",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["google_shopping"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "google_shopping",
@@ -5967,6 +6711,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the list of sellers/offers for a single Google Shopping product: seller name, domain, itemised price (base/tax/shipping/total/currency), rating, product condition, availability, and any special-offer annotation. Pass any one of the opaque identifiers (product_id, gid, or data_docid) from product-search.",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["google_shopping"],
+    responseShape: { root: "data.items[]", itemKey: "seller" },
   },
   {
     platform: "google_shopping",
@@ -5988,6 +6734,7 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns dated price observations per store for a Google Shopping product_id from product-search. Each store has a prices array of date and price pairs. This is a time series, not a current-price listing.",
     singlePage: "Price history is one time-series payload per product_id with no page parameter.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["google_shopping"],
   },
   // --- google_news (1 endpoint) ---
   {
@@ -6019,6 +6766,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Depth-based fan-out: page size is controlled by depth, one call (no cursor on either source).",
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 300 },
+    tags: ["google_news"],
+    responseShape: { root: "data.items[]", itemKey: "article" },
   },
   // --- finance (7 endpoints) ---
   {
@@ -6039,8 +6788,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Quote",
     summary: "Get a financial instrument quote",
     description:
-      "Returns ONE rich, unified Quote for a financial instrument keyed by its `keyword` (`TICKER:EXCHANGE` for stocks/ETFs/indices, e.g. 'GOOGL:NASDAQ' / 'VOO:NYSEARCA' / '.INX:INDEXSP', or a forex/crypto pair, e.g. 'EUR-USD' / 'BTC-USD'). A single call bundles the live price + intraday graph, fundamentals (market cap, P/E, dividend yield, 52-week range, volumes), the company profile (CEO, founded, HQ, employees), quarterly + annual financials (equities), and peer instruments: all on ONE canonical shape across stocks, ETFs, indices, crypto, and forex, distinguished by `quote.type`. Forex/crypto pairs populate `quote.pair` (base/quote symbols) and have a null `ticker`. Get the exact `keyword` from /v1/finance/ticker-search. Sourced live from DataForSEO's Google Finance SERP (~5-10s).",
+      "Returns ONE rich, unified Quote for a financial instrument keyed by its `keyword` (`TICKER:EXCHANGE` for stocks/ETFs/indices, e.g. 'GOOGL:NASDAQ' / 'VOO:NYSEARCA' / '.INX:INDEXSP', or a forex/crypto pair, e.g. 'EUR-USD' / 'BTC-USD'). A single call bundles the live price + intraday graph, fundamentals (market cap, P/E, dividend yield, 52-week range, volumes), the company profile (CEO, founded, HQ, employees), quarterly + annual financials (equities), and peer instruments: all on ONE canonical shape across stocks, ETFs, indices, crypto, and forex, distinguished by `quote.type`. Forex/crypto pairs populate `quote.pair` (base/quote symbols) and have a null `ticker`. Get the exact `keyword` from /v1/finance/ticker-search. Read live from the Google Finance SERP (~5-10s).",
     cache: { category: "analytics", ttlSeconds: 60 },
+    tags: ["finance"],
+    responseShape: { root: "data.quote" },
   },
   {
     platform: "finance",
@@ -6061,9 +6812,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "QuoteList",
     summary: "Search financial instruments by name",
     description:
-      "Searches Google Finance for financial instruments matching a name and returns a unified QuoteList: each row carries the `id` (e.g. 'AAPL:NASDAQ', '.INX:INDEXSP', 'EUR-USD') to feed into /v1/finance/quote, plus the ticker, display name, exchange, live price, and `type` discriminator. Spans stocks, ETFs, indices, and forex/crypto pairs (asset pairs populate `quote.pair`, with a null `ticker`). Filter by instrument class with `category`. Sourced live from DataForSEO's Google Finance SERP (~2-3s).",
+      "Searches Google Finance for financial instruments matching a name and returns a unified QuoteList: each row carries the `id` (e.g. 'AAPL:NASDAQ', '.INX:INDEXSP', 'EUR-USD') to feed into /v1/finance/quote, plus the ticker, display name, exchange, live price, and `type` discriminator. Spans stocks, ETFs, indices, and forex/crypto pairs (asset pairs populate `quote.pair`, with a null `ticker`). Filter by instrument class with `category`. Read live from the Google Finance SERP (~2-3s).",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["finance"],
+    responseShape: { root: "data.items[]", itemKey: "quote" },
   },
   {
     platform: "finance",
@@ -6081,9 +6834,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "QuoteList",
     summary: "Get a markets overview (indices + movers)",
     description:
-      "Returns a unified QuoteList snapshot of the global markets overview: the major regional indices (US / Europe / Asia, tagged in `quote.ext.section`) plus the day's most-active, gainers, and losers movers. Each row is the same canonical Quote shape used everywhere: re-feed any `id` into /v1/finance/quote for the full detail. A standing overview (no input required); the regional grouping is baked into the single response. Sourced live from DataForSEO's Google Finance SERP (~4-8s).",
+      "Returns a unified QuoteList snapshot of the global markets overview: the major regional indices (US / Europe / Asia, tagged in `quote.ext.section`) plus the day's most-active, gainers, and losers movers. Each row is the same canonical Quote shape used everywhere: re-feed any `id` into /v1/finance/quote for the full detail. A standing overview (no input required); the regional grouping is baked into the single response. Read live from the Google Finance SERP (~4-8s).",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "analytics", ttlSeconds: 60 },
+    tags: ["finance"],
+    responseShape: { root: "data.items[]", itemKey: "quote" },
   },
   {
     platform: "finance",
@@ -6105,6 +6860,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns recent news articles for one financial instrument as a unified NewsArticleList: title, absolute publish time (UTC), publisher, source domain, article URL, and the widest available thumbnail. Pass the instrument in `keyword` as a bare ticker (`AAPL`) or in the `TICKER:EXCHANGE` form used by /v1/finance/quote (`AAPL:NASDAQ`) - the exchange suffix is stripped for you. Rows use the same canonical shape as /v1/google_news/search, so finance news and news-search results join on one row type. `published_at` is always an absolute second-precision ISO-8601 UTC instant, never a localized \"2 hours ago\" string. Prices and instrument data are delayed; see the platform guide for per-exchange delays.",
     singlePage: "The upstream returns one fixed-size batch per instrument; `limit` caps it and there is no continuation token.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["finance"],
+    responseShape: { root: "data.items[]", itemKey: "article" },
   },
   {
     platform: "finance",
@@ -6128,6 +6885,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns daily OHLCV bars for one instrument across an explicit date range, as a unified BarList. Each row carries `close` AND `adj_close` as separate leaves, and the distinction matters: `close` is split-adjusted only, `adj_close` is adjusted for splits AND dividends. Use `adj_close` for total-return maths and `close` for drawing prices; substituting one for the other produces a plausible wrong answer whose error grows the further back you look. Cash dividends and splits appear on the dated row they take effect, so a corporate-action history needs no second call. Delisted instruments return no data, and a recycled ticker resolves to whichever company currently holds the symbol.",
     singlePage: "The full requested date range is returned in one response; widen or narrow the range rather than paging.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["finance"],
+    responseShape: { root: "data.items[]", itemKey: "bar" },
   },
   {
     platform: "finance",
@@ -6149,6 +6908,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns income-statement, balance-sheet and cash-flow line items per reporting period as a unified FinancialStatementList. Line-item names match the `financials` block inside /v1/finance/quote, so both surfaces spell `net_income` the same way. Every `_delta` leaf is the period-over-period fractional change of its line item; the earliest period has nothing to compare against and reports null rather than a fabricated zero. Four leaves have no source on this surface and are always null: `currency`, `price_to_book`, `return_on_assets` and `return_on_capital` (the last two are conventionally trailing-twelve-month ratios over averaged denominators, and a single-period substitute would be a different number wearing the same name). The oldest one or two periods can arrive carrying only their identity leaves, which is what the upstream holds for them, not a fault. IMPORTANT: rows are keyed by fiscal period END, not by filing date. This surface therefore cannot support point-in-time reconstruction, and a restatement silently replaces the original figures, so a backtest built on it carries look-ahead bias.",
     singlePage: "Every available reporting period is returned in one response; there is no continuation token.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["finance"],
+    responseShape: { root: "data.items[]", itemKey: "financial_statement" },
   },
   {
     platform: "finance",
@@ -6170,8 +6931,10 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one expiry's option chain as a flat unified OptionContractList: calls and puts in a single list distinguished by `type`, each with strike, bid, ask, last price, volume, open interest, implied volatility and an in-the-money flag. Flattening is deliberate, so filtering by `type` works exactly like filtering by `strike` instead of walking two differently-shaped arrays. Options quotes are OPRA data and are delayed by roughly 15 minutes; this endpoint is not suitable for execution decisions.",
     singlePage: "One expiry's full chain is returned per response; select another expiry rather than paging.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["finance"],
+    responseShape: { root: "data.items[]", itemKey: "option_contract" },
   },
-  // --- google_trends (2 endpoints) ---
+  // --- google_trends (3 endpoints) ---
   {
     platform: "google_trends",
     resource: "explore",
@@ -6194,6 +6957,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns Google Trends interest-over-time for up to 5 keywords in one call. Response is `{ series, averages }`: `series` is one entry per keyword, each with dated `points` ({ date, datetime, value, partial }) where `value` is Google's 0-100 relative-popularity score; `averages` is the per-keyword mean over the window. `partial` is true on a bucket Google is still accumulating, which is normally the last point: treat it as an incomplete count rather than a fall in interest, and drop it before charting a trend. Compare terms head-to-head (values are normalised across the keyword set) and scope by `location`, `timeframe`, and `category`. A keyword set with no measurable search interest returns 404 and costs 0 credits, so a dead term is never billed. A billed refresh is typically 5-9s and the slow tail reaches about 30s, so set a client timeout of at least 60s: this surface reads Google Trends live and Google itself is the slow part. Exact repeats may use the 2-minute search cache and return in milliseconds at 0 credits.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["google_trends"],
   },
   {
     platform: "google_trends",
@@ -6217,6 +6981,35 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the related search queries for ONE keyword as `{ rising, top }`. `rising` is the breakout list: queries whose search interest grew the most over the window, each with a `growth` percentage (a true breakout can read into the thousands, e.g. 3200 = +3200%); `top` is the most-searched related queries, each with a 0-100 relative `value`. The closest thing to a 'breakout terms' primitive: pair it with /v1/google_trends/explore to size a trend and find the queries driving it. A keyword with too little search volume in the requested location and window to build a related-query list returns 404 at 0 credits: that is a fact about the KEYWORD, not an unsupported location, and the same location will answer 200 for a keyword people there actually search. Widen `timeframe` or use the keyword in the local language before concluding a location is unavailable. A billed refresh is typically 5-9s and the slow tail reaches about 30s, so set a client timeout of at least 60s: this surface reads Google Trends live and Google itself is the slow part. Exact repeats may use the 2-minute search cache and return in milliseconds at 0 credits.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["google_trends"],
+  },
+  {
+    platform: "google_trends",
+    resource: "trending",
+    method: "GET",
+    params: [
+      { name: "location", required: true, description: "Where to read trends. An ISO country code ('DE', 'US', 'KR'), its English name ('Germany'), or an ISO 3166-2 region inside it ('DE-BY', 'US-CA', 'GB-SCT'). Google covers 125 countries and has no worldwide list; a country it does not cover is rejected with a free 400.", example: "DE" },
+    ],
+    optionalParams: [
+      { name: "hours", type: "enum", enumValues: ["4", "24", "48", "168"], description: "Only trends that started in the past 4, 24, 48 or 168 hours (7 days). Defaults to 24.", example: "24" },
+      { name: "category", type: "enum", enumValues: ["autos_and_vehicles", "beauty_and_fashion", "business_and_finance", "entertainment", "food_and_drink", "games", "health", "hobbies_and_leisure", "jobs_and_education", "law_and_government", "other", "pets_and_animals", "politics", "science", "shopping", "sports", "technology", "travel_and_transportation", "climate"], description: "Keep trends Google tagged with this category: autos_and_vehicles, beauty_and_fashion, business_and_finance, climate, entertainment, food_and_drink, games, health, hobbies_and_leisure, jobs_and_education, law_and_government, other, pets_and_animals, politics, science, shopping, sports, technology, or travel_and_transportation. These are Trending Now's categories, not the numeric codes /v1/google_trends/explore takes. Defaults to every category." },
+      { name: "status", type: "enum", enumValues: ["all", "active"], description: "`active` keeps only trends that are still trending. Defaults to `all`, which also returns trends that have already ended inside the window." },
+      { name: "sort", type: "enum", enumValues: ["relevance", "search_volume", "recency", "title"], description: "relevance (Google's own order, the default), search_volume (largest first), recency (most recently started first), or title (A to Z)." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 500, description: "How many trends to return after filtering and sorting, 1 to 500. Defaults to 100." },
+    ],
+    oneOfGroups: [],
+    creditTier: "advanced",
+    creditCost: 5,
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "ladder" },
+    archetype: "SearchResult",
+    summary: "Get Google Trends Trending Now for a location",
+    description:
+      "Returns what people in one country or region are searching for right now, with no keyword in: the Google Trends Trending Now list for a place and a time window. Each item has `rank` (Google's relevance position), `title`, `search_volume` (the lower bound of Google's bucket, so 50000 means 50K+), `increase_percent` (Google shows at most 1000), `started_at`, `ended_at` and `active` (still trending when `ended_at` is null), `categories`, `breakdown` (the related searches Google groups into the trend) and up to 3 `news` articles Google links to it. `total` counts every trend matching your filters before `limit`. Narrow with `hours`, `category` and `status`, and reorder with `sort`; these are the same filters trends.google.com/trending offers. Google publishes no worldwide list, so `location` is required. A place and window with nothing trending returns 404 at 0 credits; filters that match nothing return an empty list at 0 credits. Typically under 2 seconds; allow 30 seconds for the slow tail. Exact repeats within 5 minutes are served from cache at 0 credits.",
+    singlePage: "One ranked list per place and window with no pagination. Google returns the whole list in one answer (DE, 24 hours: 431 trends, 13/09/2026); `limit` caps how many rows ship.",
+    cache: { category: "search", ttlSeconds: 300 },
+    group: "Trending",
+    tags: ["google_trends"],
+    responseShape: { root: "data.items[]" },
   },
   // --- trustpilot (2 endpoints) ---
   {
@@ -6236,9 +7029,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "AuthorList",
     summary: "Search Trustpilot businesses",
     description:
-      "Searches Trustpilot for businesses (companies) matching a keyword. Returns a unified AuthorList: each result is a business profile with its display name, Trustpilot domain (`username`/`id`), own website (`external_url`), Trustpilot review-page URL (`url`), and total Trustpilot review count (`posts_count`). Use the returned domain to pull that business's reviews via /v1/trustpilot/reviews. Note: search matches BUSINESSES, not products: a domain-shaped query returns no results. Sourced from DataForSEO's task-based Business Data API; the async lifecycle is handled server-side, so this is an ordinary synchronous request (first calls take ~15-45s, then serve from cache).",
+      "Searches Trustpilot for businesses (companies) matching a keyword. Returns a unified AuthorList: each result is a business profile with its display name, Trustpilot domain (`username`/`id`), own website (`external_url`), Trustpilot review-page URL (`url`), and total Trustpilot review count (`posts_count`). Use the returned domain to pull that business's reviews via /v1/trustpilot/reviews. Note: search matches BUSINESSES, not products: a domain-shaped query returns no results. Read from a task-based upstream; the async lifecycle is handled server-side, so this is an ordinary synchronous request (first calls take ~15-45s, then serve from cache).",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["trustpilot"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "trustpilot",
@@ -6258,9 +7053,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "ReviewList",
     summary: "Get Trustpilot reviews for a business",
     description:
-      "Returns a unified ReviewList of customer reviews for a business on Trustpilot, keyed by its domain (`entity_id` on every review). Each review carries the star rating, full text, title, verified-status, language (reviews arrive in many languages: filter client-side via `language`), reviewer profile, owner/brand `responses[]`, and publish date. Reviews are about the COMPANY (shipping, refunds, support), never a specific product: for product reviews use /v1/google_shopping/reviews or /v1/amazon/reviews. Get the domain from /v1/trustpilot/business-search. The platform exposes no deeper pagination: `depth` caps at 200 (the most recent / most relevant); a business with no Trustpilot reviews returns 404 (auto-refunded). Sourced from DataForSEO's task-based Business Data API (first calls ~15-45s, then cached).",
+      "Returns a unified ReviewList of customer reviews for a business on Trustpilot, keyed by its domain (`entity_id` on every review). Each review carries the star rating, full text, title, verified-status, language (reviews arrive in many languages: filter client-side via `language`), reviewer profile, owner/brand `responses[]`, and publish date. Reviews are about the COMPANY (shipping, refunds, support), never a specific product: for product reviews use /v1/google_shopping/reviews or /v1/amazon/reviews. Get the domain from /v1/trustpilot/business-search. The platform exposes no deeper pagination: `depth` caps at 200 (the most recent / most relevant); a business with no Trustpilot reviews returns 404 (auto-refunded). Read from a task-based upstream (first calls ~15-45s, then cached).",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["trustpilot"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   // --- g2 (7 endpoints) ---
   {
@@ -6283,6 +7080,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one G2 software product: name, description, star rating, review count, categories, seller, pricing plans, feature list, alternatives, comparisons, and media. Pass the G2 slug (postman) or the full G2 product URL. Contact enrichment of the product's own website is off by default; set website_contacts_crawl_mode to homepage or deep to include it. For written reviews call GET /v1/g2/reviews with the same id.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Products",
+    tags: ["g2"],
+    responseShape: { root: "data.product" },
   },
   {
     platform: "g2",
@@ -6312,6 +7111,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Reviews",
+    tags: ["g2"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "g2",
@@ -6335,6 +7136,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Categories",
+    tags: ["g2"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "g2",
@@ -6353,6 +7156,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "The upstream returns the complete category URL dump in one call (2,227 links, live-verified 2026-09-01) and exposes no page parameter.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Categories",
+    tags: ["g2"],
   },
   {
     platform: "g2",
@@ -6376,6 +7180,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one G2 seller: name, description, aggregate rating, review count, headquarters, year founded, website, and a page of the product portfolio. Product and review teasers paginate independently via products_page and reviews_page. For the full product list without the profile chrome, call GET /v1/g2/seller/products.",
     cache: { category: "profile", ttlSeconds: 900 },
     group: "Sellers",
+    tags: ["g2"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "g2",
@@ -6398,6 +7204,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Sellers",
+    tags: ["g2"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "g2",
@@ -6418,6 +7226,7 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Products",
+    tags: ["g2"],
   },
   // --- google_play (9 endpoints) ---
   {
@@ -6442,6 +7251,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a unified AppList of Google Play apps matching a keyword: title, icon, developer, rating, price/is_free, and store URL on every item, on the same canonical `App` shape used across every app marketplace (`app.store` = \"google_play\"). Detail-only fields (description, screenshots, installs) are null on search items; fetch /v1/google_play/app-info for the full record. Served from the Google Play catalogue: a first, uncached call is task-polled upstream and typically takes 3 to 15s, with a review pull at high `depth` reaching 40s. Set a client timeout of at least 60s.",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["google_play"],
+    responseShape: { root: "data.items[]", itemKey: "app" },
   },
   {
     platform: "google_play",
@@ -6464,6 +7275,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns Google Play's search autocomplete suggestions for a keyword stem: the same terms the store's search box surfaces. The day Play starts autocompleting a phrase, real demand exists; poll a stem daily and diff to catch rising app keywords early. Each item is `{ term, priority }` ranked by Play's own order (Play exposes no numeric score). Returns a list under `items`.",
     singlePage: "Play's autocomplete returns one fixed block of suggestions and exposes no cursor, offset or size parameter.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["google_play"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "google_play",
@@ -6485,6 +7298,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the full canonical `App` record for one Google Play app keyed by its package name (`app_id`): title, description, developer block (incl. email/address/website), rating, price, install count + display ('1,000,000,000+'), version, size, screenshots, genres, chart tags, similar apps, and update date. The `app.store` field is always \"google_play\"; Apple-only leaves (advisories, languages) are null. Get the `app_id` from /v1/google_play/app-search.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["google_play"],
+    responseShape: { root: "data.app" },
   },
   {
     platform: "google_play",
@@ -6510,6 +7325,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a unified ReviewList of Google Play user reviews for an app, keyed by its package name (`app_id` on every review's `entity_id`). Each review carries the star rating, full text, reviewer name + avatar, helpful-vote count, developer `responses[]` (reply text + date), and publish date: on the SAME canonical `Review` shape used by Amazon, Google Shopping, and Trustpilot. Google reviews have no title (always null). `depth` returns reviews in batches of 150 (max 600).",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["google_play"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "google_play",
@@ -6535,6 +7352,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a unified AppList for a Google Play store chart (top free, top paid, top grossing, movers & shakers, etc.), optionally scoped to a category. Each item is the same canonical `App` shape as app-search. Use it to track ranking movements or build a category leaderboard.",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["google_play"],
+    responseShape: { root: "data.items[]", itemKey: "app" },
   },
   {
     platform: "google_play",
@@ -6562,6 +7381,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches a real-time, filterable Google Play listings database by app title (and/or description) and returns a unified AppList. Unlike the store-chart endpoints this one is the ONE true paginator: page by passing `pagination.next_cursor` back as `cursor` until `pagination.has_more` is false, size the page with `limit` (≤50), and read the platform-wide match count at `data.total` (14,686 for the query 'photo editor' on 06/09/2026). Each row also carries `app.ext.appdata.time_update`, the freshness stamp for that listing in the database. Premium-tier because this surface is billed per returned item.",
     pagination: { style: "cursor", nativeParam: "offset_token", limitParam: "limit" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["google_play"],
+    responseShape: { root: "data.items[]", itemKey: "app" },
   },
   {
     platform: "google_play",
@@ -6578,6 +7399,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the list of Google Play app categories used by the `app_category` filter on /v1/google_play/app-list. Static reference data: heavily cached.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["google_play"],
   },
   {
     platform: "google_play",
@@ -6596,6 +7418,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the Google Play storefronts (name + numeric location code + ISO country code) accepted by the `country` param on every google_play endpoint: 211 countries. Static reference data, heavily cached. Storefronts are country-level, so a sub-country code resolves to its parent and returns that country's data: `country=1019999` (a Minnesota city) and `country=US` returned byte-identical charts on 06/09/2026. `location_type=all` returns the full underlying geo tree instead, all 269,681 rows of it (cities, postal codes, neighbourhoods, airports), which is a 46 MB response and rarely what you want here.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["google_play"],
   },
   {
     platform: "google_play",
@@ -6612,6 +7435,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the languages (name + code) supported by the Google Play App Data endpoints. Use a code as the `language` param. Static reference data: heavily cached.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["google_play"],
   },
   // --- app_store (9 endpoints) ---
   {
@@ -6633,9 +7457,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "AppList",
     summary: "Search Apple App Store apps by keyword",
     description:
-      "Returns a unified AppList of Apple App Store apps matching a keyword: title, icon, rating, price/is_free, and store URL on every item, on the same canonical `App` shape used across every app marketplace (`app.store` = \"app_store\"). Detail-only fields (description, screenshots, developer) are null on search items; fetch /v1/app_store/app-info for the full record. Served from the Apple App Store catalogue: a first, uncached call is task-polled upstream and typically takes 3 to 15s, with a review pull at high `depth` reaching 40s. Set a client timeout of at least 60s.",
+      "Returns a unified AppList of Apple App Store apps matching a keyword: title, icon, developer, category, rating, price/is_free, and store URL on every item, on the same canonical `App` shape used across every app marketplace (`app.store` = \"app_store\"). Detail-only fields (description, screenshots, similar apps) are null on search items; fetch /v1/app_store/app-info for the full record. Served from the Apple App Store catalogue: a first, uncached call is task-polled upstream and typically takes 3 to 15s, with a review pull at high `depth` reaching 40s. Set a client timeout of at least 60s.",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["app_store"],
+    responseShape: { root: "data.items[]", itemKey: "app" },
   },
   {
     platform: "app_store",
@@ -6657,6 +7483,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns Apple's App Store search autocomplete ('search hints') for a keyword stem: the same suggestions the store's search box surfaces, ranked by Apple's own priority. The day Apple starts autocompleting a phrase, real demand exists; poll a stem daily and diff to catch rising app keywords early. Each item is `{ term, priority }` where `priority` is the 1-based upstream rank (Apple exposes no numeric score). Returns a list under `items`.",
     singlePage: "Apple's autocomplete returns one fixed block of suggestions and exposes no cursor, offset or size parameter.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["app_store"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "app_store",
@@ -6676,8 +7504,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "App",
     summary: "Get full Apple App Store app details",
     description:
-      "Returns the full canonical `App` record for one Apple App Store app keyed by its numeric `app_id`: title, description, developer, rating, price, version, minimum iOS version, size, screenshots, supported languages, age advisories, similar apps, and update date. The `app.store` field is always \"app_store\"; Google-only leaves (installs, genres, developer email/address) are null, and `released_at` is null (Apple deprecates it). Get the `app_id` from /v1/app_store/app-search.",
+      "Returns the full canonical `App` record for one Apple App Store app keyed by its numeric `app_id`: title, subtitle, description, developer (including public website), rating, price, category, original release date, version, minimum iOS version, size, screenshots, supported languages, age advisories, similar apps, and update date. The `app.store` field is always \"app_store\"; Google-only leaves (installs, developer email/address) are null. Get the `app_id` from /v1/app_store/app-search.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["app_store"],
+    responseShape: { root: "data.app" },
   },
   {
     platform: "app_store",
@@ -6703,6 +7533,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a unified ReviewList of Apple App Store user reviews for an app, keyed by its numeric `app_id` (on every review's `entity_id`). Each review carries the star rating, full text, review title, reviewer name, and publish date: on the SAME canonical `Review` shape used by Amazon, Google Shopping, and Trustpilot. Apple reviews have no avatar, helpful-vote count, or developer responses (those are null). `depth` returns reviews in batches of 50 (max 500; a 500-review pull takes around 40s). Apple's review feed cannot be filtered by star rating upstream, so `rating` is rejected here with a free 400 rather than silently returning the unfiltered feed: request a larger `depth` and filter on `review.rating.value`, or use /v1/google_play/app-reviews where the filter is real.",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["app_store"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "app_store",
@@ -6728,6 +7560,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a unified AppList for an Apple App Store chart (top free, top paid, top grossing, and the three new-apps charts), optionally scoped to a category. Each item is the same canonical `App` shape as app-search. Use it to track ranking movements or build a category leaderboard. iPad-specific charts are not available from this source. Apple publishes a chart for most but not all categories: the Newsstand-era `magazines_*` values plus `catalogs`, `games_dice` and `games_educational` return an empty list on `top_free_ios` at 0 credits (measured 06/09/2026), and several of them do populate on the `new_ios` charts.",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["app_store"],
+    responseShape: { root: "data.items[]", itemKey: "app" },
   },
   {
     platform: "app_store",
@@ -6755,6 +7589,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches a real-time, filterable Apple App Store listings database by app title (and/or description) and returns a unified AppList. Unlike the store-chart endpoints this one is the ONE true paginator: page by passing `pagination.next_cursor` back as `cursor` until `pagination.has_more` is false, size the page with `limit` (≤50), and read the platform-wide match count at `data.total` (14,686 for the query 'photo editor' on 06/09/2026). Each row also carries `app.ext.appdata.time_update`, the freshness stamp for that listing in the database. Premium-tier because this surface is billed per returned item.",
     pagination: { style: "cursor", nativeParam: "offset_token", limitParam: "limit" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["app_store"],
+    responseShape: { root: "data.items[]", itemKey: "app" },
   },
   {
     platform: "app_store",
@@ -6771,6 +7607,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the list of Apple App Store app categories used by the `app_category` filter on /v1/app_store/app-list. Static reference data: heavily cached.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["app_store"],
   },
   {
     platform: "app_store",
@@ -6789,6 +7626,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the Apple App Store storefronts (name + numeric location code + ISO country code) accepted by the `country` param on every app_store endpoint: 105 countries. Static reference data, heavily cached. `location_type=all` returns the full underlying geo tree instead, which for this store is the same list. Storefronts are country-level: a sub-country code resolves to its parent country and returns that country's data.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["app_store"],
   },
   {
     platform: "app_store",
@@ -6805,6 +7643,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the languages (name + code) supported by the Apple App Store App Data endpoints. Use a code as the `language` param. Static reference data: heavily cached.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["app_store"],
   },
   // --- tripadvisor (16 endpoints) ---
   {
@@ -6826,9 +7665,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "PlaceList",
     summary: "Search TripAdvisor businesses & places",
     description:
-      "Searches TripAdvisor for businesses and places (restaurants, hotels, attractions) matching a keyword in a location. Returns a unified PlaceList: each result carries the place name, category, star rating, total review count, and the `url_path` (the `id`/`url` are derived from it) that you pass to /v1/tripadvisor/reviews to pull that place's reviews. Results are location-bound (default: United States). Sourced from DataForSEO's task-based Business Data API; the async lifecycle is handled server-side, so this is an ordinary synchronous request (first calls take ~15-45s, then serve from cache).",
+      "Searches TripAdvisor for businesses and places (restaurants, hotels, attractions) matching a keyword in a location. Returns a unified PlaceList: each result carries the place name, category, star rating, total review count, and the `url_path` (the `id`/`url` are derived from it) that you pass to /v1/tripadvisor/reviews to pull that place's reviews. Results are location-bound (default: United States). Read from a task-based upstream; the async lifecycle is handled server-side, so this is an ordinary synchronous request (first calls take ~15-45s, then serve from cache).",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["tripadvisor"],
+    responseShape: { root: "data.items[]", itemKey: "place" },
   },
   {
     platform: "tripadvisor",
@@ -6852,9 +7693,11 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "ReviewList",
     summary: "Get TripAdvisor reviews for a place",
     description:
-      "Returns a unified ReviewList of traveler reviews for a TripAdvisor place, keyed by its `url_path` (`entity_id` on every review). Each review carries the star rating, full text, title, reviewer profile, attached photos, owner/management `responses[]`, the original + translated language (TripAdvisor auto-translates: a `translated` flag marks it), and publish date. Get the `url_path` from /v1/tripadvisor/search. Filter by traveler rating, traveler type, or a keyword. The synchronous endpoint caps `depth` at 30 (deeper history is a future async surface); a place with no matching reviews returns 404 (auto-refunded). Sourced from DataForSEO's task-based Business Data API (first calls ~15-45s, then cached).",
+      "Returns a unified ReviewList of traveler reviews for a TripAdvisor place, keyed by its `url_path` (`entity_id` on every review). Each review carries the star rating, full text, title, reviewer profile, attached photos, owner/management `responses[]`, the original + translated language (TripAdvisor auto-translates: a `translated` flag marks it), and publish date. Get the `url_path` from /v1/tripadvisor/search. Filter by traveler rating, traveler type, or a keyword. The synchronous endpoint caps `depth` at 30 (deeper history is a future async surface); a place with no matching reviews returns 404 (auto-refunded). Read from a task-based upstream (first calls ~15-45s, then cached).",
     singlePage: "DFS depth-based fan-out: page size is controlled by depth, one call.",
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["tripadvisor"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "tripadvisor",
@@ -6877,6 +7720,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Resolves any TripAdvisor place URL - hotel, restaurant, or attraction - into a unified Place: name, category, star rating, total review count, price level, address, phone, coordinates, and images. This is the generic resolver: pass the `url_path` from a /v1/tripadvisor/search result, or any TripAdvisor page URL a user pasted, and get back the resolved place. Use it to confirm which property a `url_path` actually points at before pulling its reviews, because TripAdvisor keys on the numeric id in the path and ignores the slug text, so a stale slug can name a different property than the one it resolves to. A URL that resolves to nothing returns 404 (auto-refunded).",
     cache: { category: "profile", ttlSeconds: 900 },
     group: "Places",
+    tags: ["tripadvisor"],
+    responseShape: { root: "data.place" },
   },
   {
     platform: "tripadvisor",
@@ -6900,6 +7745,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "TripAdvisor's typeahead returns one ranked set; `depth` is its page size (max 50) and there is no second page upstream.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Places",
+    tags: ["tripadvisor"],
+    responseShape: { root: "data.items[]", itemKey: "place" },
   },
   {
     platform: "tripadvisor",
@@ -6929,6 +7776,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Upstream multi-pages internally above 30 rows, so `depth` (max 100) is served by one call.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Hotels",
+    tags: ["tripadvisor"],
+    responseShape: { root: "data.items[]", itemKey: "place" },
   },
   {
     platform: "tripadvisor",
@@ -6951,6 +7800,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a unified Place for one TripAdvisor hotel: name, star rating, total review count, price band, address, phone, coordinates, its rank within the destination, and its amenity list. Get the `url_path` from /v1/tripadvisor/hotels or /v1/tripadvisor/search. A `url_path` matching no property returns 404 (auto-refunded).",
     cache: { category: "profile", ttlSeconds: 900 },
     group: "Hotels",
+    tags: ["tripadvisor"],
+    responseShape: { root: "data.place" },
   },
   {
     platform: "tripadvisor",
@@ -6980,6 +7831,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Upstream multi-pages internally above 30 rows, so `depth` (max 100) is served by one call.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Restaurants",
+    tags: ["tripadvisor"],
+    responseShape: { root: "data.items[]", itemKey: "place" },
   },
   {
     platform: "tripadvisor",
@@ -7002,6 +7855,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a unified Place for one TripAdvisor restaurant: name, star rating, total review count, price band, cuisine tags, full address, phone, coordinates, opening hours by day, its rank within the destination, and whether the listing is claimed by its owner. Get the `url_path` from /v1/tripadvisor/restaurants or /v1/tripadvisor/search.",
     cache: { category: "profile", ttlSeconds: 900 },
     group: "Restaurants",
+    tags: ["tripadvisor"],
+    responseShape: { root: "data.place" },
   },
   {
     platform: "tripadvisor",
@@ -7025,6 +7880,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Upstream page size is 20; a deeper `depth` is served by an internal offset fan-out inside one request.",
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Restaurants",
+    tags: ["tripadvisor"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "tripadvisor",
@@ -7054,6 +7911,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Upstream multi-pages internally above 30 rows, so `depth` (max 100) is served by one call.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Attractions",
+    tags: ["tripadvisor"],
+    responseShape: { root: "data.items[]", itemKey: "place" },
   },
   {
     platform: "tripadvisor",
@@ -7076,6 +7935,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a unified Place for one TripAdvisor attraction: name, editorial description, star rating, total review count, full address, phone, coordinates, opening hours, its rank within the destination, and its photo gallery. Get the `url_path` from /v1/tripadvisor/attractions or /v1/tripadvisor/search.",
     cache: { category: "profile", ttlSeconds: 900 },
     group: "Attractions",
+    tags: ["tripadvisor"],
+    responseShape: { root: "data.place" },
   },
   {
     platform: "tripadvisor",
@@ -7099,6 +7960,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Upstream page size is 20; a deeper `depth` is served by an internal offset fan-out inside one request.",
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Attractions",
+    tags: ["tripadvisor"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "tripadvisor",
@@ -7121,6 +7984,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "A destination's activity taxonomy is one complete set; the upstream exposes no paging on it.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Attractions",
+    tags: ["tripadvisor"],
   },
   {
     platform: "tripadvisor",
@@ -7148,6 +8012,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Upstream multi-pages internally above its default, so `depth` (max 100) is served by one call.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Cruises",
+    tags: ["tripadvisor"],
+    responseShape: { root: "data.items[]", itemKey: "place" },
   },
   {
     platform: "tripadvisor",
@@ -7170,6 +8036,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a unified Place for one TripAdvisor cruise ship: name, description, passenger rating, total review count, and its photo gallery. Get the `url_path` from a /v1/tripadvisor/cruises result. Note a ship has no address, phone or price band, so those leaves are null by design.",
     cache: { category: "profile", ttlSeconds: 900 },
     group: "Cruises",
+    tags: ["tripadvisor"],
+    responseShape: { root: "data.place" },
   },
   {
     platform: "tripadvisor",
@@ -7193,6 +8061,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Upstream page size is 20; a deeper `depth` is served by an internal offset fan-out inside one request.",
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Cruises",
+    tags: ["tripadvisor"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   // --- walmart (5 endpoints) ---
   {
@@ -7215,6 +8085,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns full product detail for a Walmart item: title, brand, model, UPC, both descriptions, current and list price, rating with its 1-5 star breakdown, recommended percentage, image gallery, specifications, availability, seller, condition, and return-policy window. Accepts either the numeric item id from a walmart.com/ip/ URL or Walmart's alphanumeric catalog id. For this product's written reviews call GET /v1/walmart/reviews with the same id; for every seller offering it, GET /v1/walmart/offers.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Products",
+    tags: ["walmart"],
+    responseShape: { root: "data.product" },
   },
   {
     platform: "walmart",
@@ -7241,6 +8113,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page", limitParam: "limit" },
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Reviews",
+    tags: ["walmart"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "walmart",
@@ -7271,6 +8145,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["walmart"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "walmart",
@@ -7302,6 +8178,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page", limitParam: "limit" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Products",
+    tags: ["walmart"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "walmart",
@@ -7324,6 +8202,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "The upstream returns one fixed offer set per product and exposes no page parameter; additional_offers_available flags offers that are not retrievable through this endpoint.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Products",
+    tags: ["walmart"],
+    responseShape: { root: "data.items[]", itemKey: "seller" },
   },
   // --- target (5 endpoints) ---
   {
@@ -7344,6 +8224,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns full product detail for a Target item: title, brand, description, highlight bullets, current and regular price, average rating with its 1-5 star distribution, written-review count, the full image gallery, colour and size variations, and stock status. Prices are national: Target's product endpoint reports the same price whatever store is asked for, so treat this as catalogue pricing rather than shelf pricing. For this product's written reviews call GET /v1/target/reviews with the same TCIN.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Products",
+    tags: ["target"],
+    responseShape: { root: "data.product" },
   },
   {
     platform: "target",
@@ -7366,6 +8248,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Reviews",
+    tags: ["target"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "target",
@@ -7388,6 +8272,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Products",
+    tags: ["target"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "target",
@@ -7406,6 +8292,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "The upstream returns the COMPLETE top-level taxonomy in one call (29 of 29 nodes, verified live 2026-07-27) and exposes no page parameter.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reference",
+    tags: ["target"],
   },
   {
     platform: "target",
@@ -7426,6 +8313,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "The upstream returns one fixed set of nearby stores per location (20 for a ZIP, verified live 2026-07-27) and exposes no page or radius parameter.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stores",
+    tags: ["target"],
+    responseShape: { root: "data.items[]", itemKey: "place" },
   },
   // --- wayfair (3 endpoints) ---
   {
@@ -7456,6 +8345,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Products",
+    tags: ["wayfair"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "wayfair",
@@ -7477,6 +8368,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns full product detail for a Wayfair item: name, brand, manufacturer, current price, star rating, written-review count, stock status, the image gallery, colour and size variants, shipping estimate, return window, and a specification table combining Wayfair's highlights with its full dimension list. Note that the review count here counts the selected variant while the count on GET /v1/wayfair/search counts the whole catalogue entry, so the two legitimately differ for the same SKU. For the review text itself call GET /v1/wayfair/reviews.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Products",
+    tags: ["wayfair"],
+    responseShape: { root: "data.product" },
   },
   {
     platform: "wayfair",
@@ -7502,6 +8395,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Reviews",
+    tags: ["wayfair"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   // --- home_depot (4 endpoints) ---
   {
@@ -7524,6 +8419,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns full product detail for a Home Depot item: title, brand, model number, UPC, description, highlight bullets, current and original price, star rating, review count, the image gallery, and stock status. It also returns per-store inventory under product.ext.store_inventory, giving the actual unit count on the shelf at each nearby store, which is the field nothing else in this API sells. Pass store_id to localise pricing and that inventory; get a store id from GET /v1/home_depot/stores. For the review text call GET /v1/home_depot/reviews with the same item id.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Products",
+    tags: ["home_depot"],
+    responseShape: { root: "data.product" },
   },
   {
     platform: "home_depot",
@@ -7544,6 +8441,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "The upstream returns one fixed page of 10 reviews and exposes no paging parameter: page, offset and startIndex were each verified live on 2026-09-05 to return the identical first review. total reports the full review count so you can see what is not returned.",
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Reviews",
+    tags: ["home_depot"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "home_depot",
@@ -7567,6 +8466,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["home_depot"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "home_depot",
@@ -7587,6 +8488,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "The upstream returns one fixed set of nearby stores per ZIP (20 on 2026-09-05) and exposes no page or radius parameter.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stores",
+    tags: ["home_depot"],
+    responseShape: { root: "data.items[]", itemKey: "place" },
   },
   // --- ebay (2 endpoints) ---
   {
@@ -7618,6 +8521,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Products",
+    tags: ["ebay"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "ebay",
@@ -7639,6 +8544,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns full detail for a single eBay listing: title, brand, price, original price, currency, condition and condition notes, MPN and UPC, units available, units sold, watchers, and the seller. The seller block is the reason to call this rather than search: product.ext.seller_reputation carries lifetime feedback percentage and count, top-rated status, items sold, join date, and four detailed sub-ratings for description accuracy, shipping cost, shipping speed, and communication. One known gap: eBay's detail response currently returns a corrupt image array, so image_urls is null here. Use the image on the matching GET /v1/ebay/search row, which is unaffected.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Products",
+    tags: ["ebay"],
+    responseShape: { root: "data.product" },
   },
   // --- etsy (4 endpoints) ---
   {
@@ -7663,6 +8570,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one Etsy listing: title, description, price, currency, images, shop name, in-stock flag, and quantity. Pass the numeric listing id or the full etsy.com/listing/{id} URL. Search is not available on this surface yet; start from a known listing id or from GET /v1/etsy/shop/products. Similar listings for the same product: GET /v1/etsy/product/similar.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Products",
+    tags: ["etsy"],
+    responseShape: { root: "data.product" },
   },
   {
     platform: "etsy",
@@ -7688,6 +8597,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page", limitParam: "limit" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Products",
+    tags: ["etsy"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "etsy",
@@ -7712,6 +8623,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Upstream similar/v2 has no page or cursor param; it returns one fixed window of similar listings.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Products",
+    tags: ["etsy"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "etsy",
@@ -7732,6 +8645,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Fixed-window autocomplete: upstream returns a single non-cursored suggestion list.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["etsy"],
+    responseShape: { root: "data.items[]" },
   },
   // --- sephora (11 endpoints) ---
   {
@@ -7755,6 +8670,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one Sephora US product: title, brand, description, list price, rating, review count, images, ingredients, size, and in-stock flag. Pass the P-number (P427414) or the full sephora.com/product URL. Optional sku pins a size or colour variant. Optional language is en-US, en-CA, or fr-CA. For written reviews call GET /v1/sephora/reviews with the same product id. For store stock call GET /v1/sephora/availability with the sku.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Products",
+    tags: ["sephora"],
+    responseShape: { root: "data.product" },
   },
   {
     platform: "sephora",
@@ -7780,6 +8697,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page", limitParam: "limit" },
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Reviews",
+    tags: ["sephora"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "sephora",
@@ -7809,6 +8728,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["sephora"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "sephora",
@@ -7831,6 +8752,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Fixed-window autocomplete: upstream returns one typeAheadTerms list and exposes no page parameter.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["sephora"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "sephora",
@@ -7857,6 +8780,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Products",
+    tags: ["sephora"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "sephora",
@@ -7875,6 +8800,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "The upstream returns the complete root taxonomy in one call (13 of 13 nodes, verified live 2026-09-02) and exposes no page parameter.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reference",
+    tags: ["sephora"],
   },
   {
     platform: "sephora",
@@ -7895,6 +8821,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "One category node plus its child list in a single call; no page parameter.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reference",
+    tags: ["sephora"],
   },
   {
     platform: "sephora",
@@ -7913,6 +8840,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "The upstream returns the complete brand directory in one call (372 brands, verified live 2026-09-02) and exposes no page parameter.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reference",
+    tags: ["sephora"],
   },
   {
     platform: "sephora",
@@ -7940,6 +8868,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Products",
+    tags: ["sephora"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "sephora",
@@ -7962,6 +8892,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "The upstream returns one fixed set of nearby stores per coordinate (44 around Palo Alto at 50 miles, verified live 2026-09-02) and exposes no page parameter.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stores",
+    tags: ["sephora"],
+    responseShape: { root: "data.items[]", itemKey: "place" },
   },
   {
     platform: "sephora",
@@ -7986,6 +8918,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns store-level stock for one Sephora sku near a coordinate. Each store has id, name, address, distance, and an in-stock flag. Pass the sku from GET /v1/sephora/product (currentSku.skuId) plus a lat,lng. Default radius is 50 miles.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Stores",
+    tags: ["sephora"],
+    responseShape: { root: "data.product" },
   },
   // --- aliexpress (9 endpoints) ---
   {
@@ -8010,6 +8944,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one AliExpress product: title, sale price, original price, currency, shop name, images, sold count, and category. Pass the numeric product id or the full aliexpress.com/item/{id} URL. Optional country, currency, and language localise the price. A product that does not exist, or is not sold to that country, comes back 404 and is not billed. There is no product description on this surface. For reviews call GET /v1/aliexpress/reviews. For similar items call GET /v1/aliexpress/product/similar.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Products",
+    tags: ["aliexpress"],
+    responseShape: { root: "data.product" },
   },
   {
     platform: "aliexpress",
@@ -8042,6 +8978,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["aliexpress"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "aliexpress",
@@ -8071,6 +9009,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Products",
+    tags: ["aliexpress"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "aliexpress",
@@ -8098,6 +9038,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Reviews",
+    tags: ["aliexpress"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "aliexpress",
@@ -8125,6 +9067,7 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns shipping fee, origin country, and min/max delivery days for one product SKU and a ship-to country. sku_id comes back on every product row. Optional price is the sale price used for free-shipping thresholds. Default tax_rate is 0.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Products",
+    tags: ["aliexpress"],
   },
   {
     platform: "aliexpress",
@@ -8155,6 +9098,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["aliexpress"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "aliexpress",
@@ -8184,6 +9129,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["aliexpress"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "aliexpress",
@@ -8202,6 +9149,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "The category tree is a single dump (563 rows live). There is no page or cursor param.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reference",
+    tags: ["aliexpress"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "aliexpress",
@@ -8220,6 +9169,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "The featured-promo name list is a single dump (138 rows live). There is no page or cursor param.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reference",
+    tags: ["aliexpress"],
+    responseShape: { root: "data.items[]" },
   },
   // --- hm (6 endpoints) ---
   {
@@ -8247,6 +9198,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page", limitParam: "limit" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["hm"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "hm",
@@ -8269,6 +9222,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Fixed-window autocomplete: upstream returns a single non-cursored suggestion list.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["hm"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "hm",
@@ -8291,6 +9246,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Upstream /stores returns the full country dump in one payload (478 US stores, 181 GB, live 2026-09-02) and exposes no page parameter.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stores",
+    tags: ["hm"],
+    responseShape: { root: "data.items[]", itemKey: "place" },
   },
   {
     platform: "hm",
@@ -8308,6 +9265,7 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns H&M's market list grouped by region, each country with its two-letter locale, storefront languages, and storefront URL. Use the two-letter locale as query on GET /v1/hm/stores. Search language is a different code (en_us, not us).",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reference",
+    tags: ["hm"],
   },
   {
     platform: "hm",
@@ -8325,6 +9283,7 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns H&M's website navigation tree: department nodes with child categories, hrefs, and tracking labels. The upstream has no language parameter; the dump is the US tree (/en_us/ hrefs). This is reference taxonomy, not a product listing.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reference",
+    tags: ["hm"],
   },
   {
     platform: "hm",
@@ -8346,6 +9305,7 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the manufacturing countries, supplier names, factory names, addresses, and worker-count bands H&M publishes for one product. Pass the product id from GET /v1/hm/search. A product id the origin cannot resolve fails the call (it is not an empty list). language does not change the factory list.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Products",
+    tags: ["hm"],
   },
   // --- kohls (5 endpoints) ---
   {
@@ -8372,6 +9332,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page", limitParam: "limit" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["kohls"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "kohls",
@@ -8395,6 +9357,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page", limitParam: "limit" },
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Reviews",
+    tags: ["kohls"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "kohls",
@@ -8418,6 +9382,7 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page", limitParam: "limit" },
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Reviews",
+    tags: ["kohls"],
   },
   {
     platform: "kohls",
@@ -8441,6 +9406,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "The upstream returns every store inside the radius in one call and exposes no page parameter. Live 2026-09-02: 17 stores in 25 miles of Times Square, 92 in 100 miles.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stores",
+    tags: ["kohls"],
+    responseShape: { root: "data.items[]", itemKey: "place" },
   },
   {
     platform: "kohls",
@@ -8458,6 +9425,7 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns Kohl's website navigation tree: department nodes with child categories, names, and seoURL hrefs. This is reference taxonomy, not a product listing.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reference",
+    tags: ["kohls"],
   },
   // --- klarna (18 endpoints) ---
   {
@@ -8481,6 +9449,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one Klarna shopping product: title, description, brand, rating, review count, and specifications. This payload has no list price; call GET /v1/klarna/product/offers for merchant prices. Pass the numeric product id plus category_id (cl94), or pass the full shopping URL and both ids are extracted. Ghost ids return 404 and are not billed.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Products",
+    tags: ["klarna"],
+    responseShape: { root: "data.product" },
   },
   {
     platform: "klarna",
@@ -8503,6 +9473,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "product-page-details returns the full offer set for one product in a single call (40 offers on AirPods 4, 2026-09-02) and exposes no page parameter.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Products",
+    tags: ["klarna"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "klarna",
@@ -8525,6 +9497,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Upstream /product-search returns a fixed 20-row page. offset, size, page, and sortType were ignored live on 2026-09-02 (byte-identical 24040B bodies).",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["klarna"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "klarna",
@@ -8547,6 +9521,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Autocomplete: one products list plus one suggestions list, no page parameter.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["klarna"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "klarna",
@@ -8571,6 +9547,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "cursor", nativeParam: "nextBatchId", limitParam: "limit" },
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Reviews",
+    tags: ["klarna"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "klarna",
@@ -8595,6 +9573,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "cursor", nativeParam: "nextBatchId", limitParam: "limit" },
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Reviews",
+    tags: ["klarna"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "klarna",
@@ -8617,6 +9597,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "One mixed payload of score, distributions, and a first page of user plus pro reviews. Dedicated list endpoints paginate the review bodies.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reviews",
+    tags: ["klarna"],
   },
   {
     platform: "klarna",
@@ -8640,6 +9621,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "The upstream returns the full history for the chosen interval in one call (93 points over three months, 723 over INFINITE_DAYS on AirPods 4) and exposes no page parameter.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Products",
+    tags: ["klarna"],
   },
   {
     platform: "klarna",
@@ -8663,6 +9645,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Compare returns exactly two product cards. No page parameter.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Products",
+    tags: ["klarna"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "klarna",
@@ -8691,6 +9675,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "offset", nativeParam: "offset" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Products",
+    tags: ["klarna"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "klarna",
@@ -8711,6 +9697,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "The upstream returns the complete root taxonomy in one call (the USA tree was 398KB on 2026-09-02) and exposes no page parameter.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reference",
+    tags: ["klarna"],
   },
   {
     platform: "klarna",
@@ -8733,6 +9720,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "One category node plus its child list in a single call; no page parameter.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reference",
+    tags: ["klarna"],
   },
   {
     platform: "klarna",
@@ -8756,6 +9744,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Facet groups for one category in a single call; no page parameter.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reference",
+    tags: ["klarna"],
   },
   {
     platform: "klarna",
@@ -8778,6 +9767,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Fixed popular-keyword list per category; no page parameter.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Reference",
+    tags: ["klarna"],
   },
   {
     platform: "klarna",
@@ -8801,6 +9791,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "FAQ, shopping tips, and boards for one category in a single call.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reference",
+    tags: ["klarna"],
   },
   {
     platform: "klarna",
@@ -8827,6 +9818,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "offset", nativeParam: "offset" },
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stores",
+    tags: ["klarna"],
+    responseShape: { root: "data.items[]", itemKey: "seller" },
   },
   {
     platform: "klarna",
@@ -8853,6 +9846,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "offset", nativeParam: "offset" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Stores",
+    tags: ["klarna"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "klarna",
@@ -8875,6 +9870,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Facet dump for one store in a single call (Walmart was 219KB / 1000 brand counts).",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stores",
+    tags: ["klarna"],
   },
   // --- gumtree (11 endpoints) ---
   {
@@ -8906,6 +9902,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Products",
+    tags: ["gumtree"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "gumtree",
@@ -8926,6 +9924,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one Gumtree listing: title, description, price, images, category, location with coordinates, seller name, and the seller ids needed for GET /v1/gumtree/seller. Pass the numeric ad id or the full gumtree.com/p/.../{id} URL. Asking prices, not sold prices. published_at is not returned because Gumtree only exposes relative age.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Products",
+    tags: ["gumtree"],
+    responseShape: { root: "data.product" },
   },
   {
     platform: "gumtree",
@@ -8947,6 +9947,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Upstream /similar-listings has no page or cursor param; it returns one fixed window of similar ads.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Products",
+    tags: ["gumtree"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "gumtree",
@@ -8968,6 +9970,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a public Gumtree seller: display name, average rating, rating count, membership caption, and last-active caption. Both seller_id and public_id are required; they come back on GET /v1/gumtree/product as product.ext.gumtree.user_id and public_user_id. A missing seller is 404 and is not billed.",
     cache: { category: "profile", ttlSeconds: 900 },
     group: "Sellers",
+    tags: ["gumtree"],
+    responseShape: { root: "data.seller" },
   },
   {
     platform: "gumtree",
@@ -8991,6 +9995,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Sellers",
+    tags: ["gumtree"],
+    responseShape: { root: "data.items[]", itemKey: "product" },
   },
   {
     platform: "gumtree",
@@ -9013,6 +10019,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Fixed-window autocomplete: upstream returns a single non-cursored suggestion list.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["gumtree"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "gumtree",
@@ -9031,6 +10039,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Upstream returns one fixed list of currently trending search terms.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Search",
+    tags: ["gumtree"],
   },
   {
     platform: "gumtree",
@@ -9051,6 +10060,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Category tree is a single dump, optionally scoped to one subtree.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reference",
+    tags: ["gumtree"],
   },
   {
     platform: "gumtree",
@@ -9071,6 +10081,7 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Filter definitions for one category are a single dump.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Reference",
+    tags: ["gumtree"],
   },
   {
     platform: "gumtree",
@@ -9093,6 +10104,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Location autocomplete returns a short non-cursored suggestion list.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Locations",
+    tags: ["gumtree"],
+    responseShape: { root: "data.items[]", itemKey: "place" },
   },
   {
     platform: "gumtree",
@@ -9115,6 +10128,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Reverse geocode returns one nearest Gumtree location.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Locations",
+    tags: ["gumtree"],
+    responseShape: { root: "data.place" },
   },
   // --- yelp (5 endpoints) ---
   {
@@ -9136,6 +10151,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a unified Place for one Yelp business: name, alias URL, unrounded star rating on a 5-star scale, exact review count, price level, address, coordinates, categories, photos, and timezone. Identify the business by its 22-character Yelp encid (`id`). A Yelp URL works only when the /biz/ segment is that encid; alias slugs return 404 (auto-refunded). Phone is not present on the upstream payload. To find an encid, start from GET /v1/yelp/search.",
     cache: { category: "profile", ttlSeconds: 900 },
     group: "Business",
+    tags: ["yelp"],
+    responseShape: { root: "data.place" },
   },
   {
     platform: "yelp",
@@ -9158,6 +10175,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Reviews",
+    tags: ["yelp"],
+    responseShape: { root: "data.items[]", itemKey: "review" },
   },
   {
     platform: "yelp",
@@ -9183,6 +10202,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["yelp"],
+    responseShape: { root: "data.items[]", itemKey: "place" },
   },
   {
     platform: "yelp",
@@ -9208,6 +10229,8 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["yelp"],
+    responseShape: { root: "data.items[]", itemKey: "place" },
   },
   {
     platform: "yelp",
@@ -9229,6 +10252,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Fixed-window autocomplete: upstream returns a single non-cursored suggestion list.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["yelp"],
+    responseShape: { root: "data.items[]" },
   },
   // --- utility (4 endpoints) ---
   {
@@ -9252,6 +10277,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Developer Experience",
     actionLabel: "Browse Endpoint Catalog",
+    tags: ["utility"],
   },
   {
     platform: "utility",
@@ -9274,6 +10300,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Developer Experience",
     actionLabel: "Endpoint Usage Guide",
+    tags: ["utility"],
   },
   {
     platform: "utility",
@@ -9294,6 +10321,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Developer Experience",
     actionLabel: "API Quickstart",
+    tags: ["utility"],
   },
   {
     platform: "utility",
@@ -9315,6 +10343,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Developer Experience",
     actionLabel: "AI Agent Context",
+    tags: ["utility"],
   },
   // --- linktree (1 endpoint) ---
   {
@@ -9334,6 +10363,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns data from a Linktree page including the user's display name, bio, avatar, and list of links with titles and URLs.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linktree"],
+    responseShape: { root: "data.author" },
   },
   // --- linkbio (1 endpoint) ---
   {
@@ -9353,6 +10384,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns data from a Linkbio page including display name, bio, avatar, and list of links with titles and URLs.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkbio"],
+    responseShape: { root: "data.author" },
   },
   // --- linkme (1 endpoint) ---
   {
@@ -9372,6 +10405,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns data from a Linkme page including display name, bio, avatar, and list of links with titles and URLs.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["linkme"],
+    responseShape: { root: "data.author" },
   },
   // --- komi (1 endpoint) ---
   {
@@ -9391,6 +10426,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns data from a Komi page including display name, bio, avatar, and list of links with titles and URLs.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["komi"],
+    responseShape: { root: "data.author" },
   },
   // --- pillar (1 endpoint) ---
   {
@@ -9410,6 +10447,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns data from a Pillar page including display name, bio, avatar, and list of links with titles and URLs.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["pillar"],
+    responseShape: { root: "data.author" },
   },
   // --- polymarket (1 endpoint) ---
   {
@@ -9432,6 +10471,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Server-side fan-out over the Gamma API: expands the topic into up to 6 search queries (core subject + individual informative words), issues all calls in parallel, dedupes events by id, filters out unrelated matches via informative-word overlap with the topic, and ranks the remainder by topic↔title similarity. Costs 5 credits because each call hits upstream multiple times. Use this when you want a curated, on-topic feed; use /v1/polymarket/search for raw single-query lookups.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["polymarket"],
+    responseShape: { root: "data.items[]" },
   },
   // --- hackernews (4 endpoints) ---
   {
@@ -9457,6 +10498,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches Hacker News stories, comments, and front-page items via the Algolia HN API. Defaults to story-only results sorted by relevance. The HN Algolia index only exposes `created_at_i` for numeric filtering, so use `numericFilters` for date windows (e.g. `created_at_i>1700000000`). Results come back in the unified Post shape under `data.items[]`, NOT as raw Algolia hits: each item is `{ post: { id, url, content, author, engagement, flags, published_at }, computed }`. `post.url` is the Hacker News discussion permalink; the submitted article link is at `post.content.media_urls`; `post.engagement.likes` is the HN points score and `post.engagement.comments` is `num_comments`.",
     pagination: { style: "page", nativeParam: "page" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["hackernews"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "hackernews",
@@ -9475,6 +10518,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns story metadata for a single HN item mapped to the unified Post schema: title at `content.text`, author, points at `engagement.likes`, and `published_at`. `post.url` is the Hacker News discussion permalink (`https://news.ycombinator.com/item?id={id}`), and the submitted article link is at `post.content.media_urls`, which is `string | string[] | null` across every platform by canonical design. The nested comment tree is dropped from this response; use `/v1/hackernews/story/comments` for it.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["hackernews"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "hackernews",
@@ -9494,6 +10539,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the whole comment tree for a story under `data.items[]`, in the unified Comment shape: each entry carries `id`, `author`, `text`, `published_at`, the HN permalink at `url`, its direct-reply count at `engagement.replies`, and its nested replies at `replies[]`, recursively. Algolia serves the entire thread in one response, so there is no cursor and nothing is left behind. Note that a story's `num_comments` on the search index counts every node ever posted, including ones the thread no longer shows, so it can exceed the tree returned here. Same upstream call as `/v1/hackernews/story`, with the CommentList archetype selecting the `children` list.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["hackernews"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "hackernews",
@@ -9512,6 +10559,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns public profile information for a Hacker News user (id, username, bio (`about`), karma, and account-creation date) mapped to the unified Author schema. HN has no follower / following / posts_count / verified concept, so those unified fields resolve to null.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["hackernews"],
+    responseShape: { root: "data.author" },
   },
   // --- quora (7 endpoints) ---
   {
@@ -9537,6 +10586,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["quora"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "quora",
@@ -9556,6 +10607,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one Quora question from its URL: title, body text, and published date. Quora questions rarely have a separate body; content.text is the title. For written answers call GET /v1/quora/answers with a keyword.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Posts",
+    tags: ["quora"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "quora",
@@ -9580,6 +10633,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["quora"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "quora",
@@ -9604,6 +10659,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["quora"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "quora",
@@ -9628,6 +10685,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Profiles",
+    tags: ["quora"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "quora",
@@ -9652,6 +10711,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["quora"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "quora",
@@ -9676,6 +10737,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["quora"],
+    responseShape: { root: "data.items[]" },
   },
   // --- douyin (8 endpoints) ---
   {
@@ -9686,7 +10749,7 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "query", required: true, description: "Search keywords, for example 美食 or coffee.", example: "美食" },
     ],
     optionalParams: [
-      { name: "limit", type: "integer", minimum: 1, maximum: 50, description: "Rows to return, 1 to 50. Default 10. Each row costs 5 credits and you are charged only for rows returned." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 25, description: "Rows to return, 1 to 25. Default 10. Each row costs 5 credits and you are charged only for rows returned." },
       { name: "sort", type: "enum", enumValues: ["relevance", "most_liked", "latest"], description: "Result ordering: relevance, most_liked, or latest. Default relevance." },
       { name: "published", type: "enum", enumValues: ["all", "day", "week", "half_year"], description: "Recency window: all, day, week, or half_year. Default all." },
       { name: "duration", type: "enum", enumValues: ["all", "under_1m", "one_to_five_m", "over_5m"], description: "Length filter: all, under_1m, one_to_five_m, or over_5m. Default all." },
@@ -9694,7 +10757,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 250 },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 125, description: "5 credits per row RETURNED. The call holds `limit x 5` up front - the default limit of 10 holds 50 and the 50 maximum holds 250 - and settles down to the rows actually delivered, so a narrow query that returns 3 videos costs 15 credits however high `limit` was set" },
     archetype: "PostList",
     summary: "Search Douyin videos",
     description:
@@ -9703,6 +10766,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["douyin"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "douyin",
@@ -9724,6 +10789,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one Douyin creator: nickname, Douyin ID, bio, avatar, follower and following counts, total likes received, video count, IP region and verification status. Accepts a profile URL, a bare sec_uid, or the numeric user ID. This is the cheapest way to track a follower count on Douyin. For the creator's videos call GET /v1/douyin/profile/posts.",
     cache: { category: "profile", ttlSeconds: 900 },
     group: "Profiles",
+    tags: ["douyin"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "douyin",
@@ -9734,14 +10801,14 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "handle", type: "string", description: "Douyin sec_uid, the MS4wLjAB... string in a profile URL, or the numeric user ID." },
       { name: "url", type: "string", description: "Full Douyin profile URL.", example: "https://www.douyin.com/user/MS4wLjABAAAAtxsy7VmVkU3RN9oIX0vdkh_6-LlQAb0gwI-tDf-bYNg" },
       { name: "id", type: "string", description: "Numeric Douyin user ID." },
-      { name: "limit", type: "integer", minimum: 1, maximum: 50, description: "Rows to return, 1 to 50. Default 10. Each row costs 5 credits and you are charged only for rows returned." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 25, description: "Rows to return, 1 to 25. Default 10. Each row costs 5 credits and you are charged only for rows returned." },
       { name: "recent_days", type: "integer", minimum: 1, maximum: 3650, description: "Only return videos published in the last N days. Leave unset for the newest regardless of age." },
       { name: "exclude_pinned", type: "boolean", description: "Set true to skip videos pinned to the top of the profile, which can be old." },
     ],
     oneOfGroups: [["handle", "url", "id"]],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 250 },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 125, description: "5 credits per row RETURNED. The call holds `limit x 5` up front - the default limit of 10 holds 50 and the 50 maximum holds 250 - and settles down to the videos actually delivered, so a creator with 4 recent videos costs 20 credits however high `limit` was set. `recent_days` and `exclude_pinned` narrow the result set BEFORE billing settles, so they lower the charge as well as the noise" },
     archetype: "PostList",
     summary: "List a Douyin creator's videos",
     description:
@@ -9750,6 +10817,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "profile", ttlSeconds: 900 },
     group: "Profiles",
+    tags: ["douyin"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "douyin",
@@ -9769,6 +10838,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one Douyin video from its URL or aweme ID: caption, creator, likes, comments, shares, saves, hashtags, music, duration, dimensions, cover image and the tagged place when the creator added one. Richer than a search row: this surface carries the creator's total likes and video count, plus the point-of-interest block. Douyin publishes no view counts, so post.engagement.views is null.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Posts",
+    tags: ["douyin"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "douyin",
@@ -9783,7 +10854,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 2, maxCost: 100 },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 2, maxCost: 100, description: "1 credit per comment RETURNED, with a floor of 2. The call holds `limit x 1` up front - the default limit of 20 holds 20 and the 100 maximum holds 100 - and settles down to the comments actually delivered, so a video with four comments does not cost a twenty-comment request" },
     archetype: "CommentList",
     summary: "Get Douyin video comments",
     description:
@@ -9792,6 +10863,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Comments",
+    tags: ["douyin"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "douyin",
@@ -9808,7 +10881,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 250 },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 250, description: "5 credits per reply RETURNED. The call holds `limit x 5` up front - the default limit of 10 holds 50 and the 50 maximum holds 250 - and settles down to the replies actually delivered. Only a comment with a non-zero `engagement.replies` has a thread, so check that on the parent row before spending a call here" },
     archetype: "CommentList",
     summary: "Get replies to a Douyin comment",
     description:
@@ -9817,6 +10890,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "comments", ttlSeconds: 300 },
     group: "Comments",
+    tags: ["douyin"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "douyin",
@@ -9826,7 +10901,7 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "query", required: true, description: "Search keywords, for example 美食 or a brand name.", example: "美食" },
     ],
     optionalParams: [
-      { name: "limit", type: "integer", minimum: 1, maximum: 50, description: "Rows to return, 1 to 50. Default 10. Each row costs 5 credits and you are charged only for rows returned." },
+      { name: "limit", type: "integer", minimum: 1, maximum: 25, description: "Rows to return, 1 to 25. Default 10. Each row costs 5 credits and you are charged only for rows returned." },
       { name: "cursor", type: "string", description: "Continuation token from a previous response's pagination block. Omit for the first page." },
       { name: "followers", type: "enum", enumValues: ["all", "under_1k", "1k_to_10k", "10k_to_100k", "100k_to_1m", "over_1m"], description: "Follower band: all, under_1k, 1k_to_10k, 10k_to_100k, 100k_to_1m, or over_1m. Default all." },
       { name: "user_type", type: "enum", enumValues: ["all", "regular_user", "enterprise_verified", "individual_verified"], description: "Account type: all, regular_user, enterprise_verified, or individual_verified. Default all." },
@@ -9834,7 +10909,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 250 },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 125, description: "5 credits per creator RETURNED. The call holds `limit x 5` up front - the default limit of 10 holds 50 and the 50 maximum holds 250 - and settles down to the creators actually delivered" },
     archetype: "AuthorList",
     summary: "Search Douyin creators",
     description:
@@ -9843,6 +10918,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Search",
+    tags: ["douyin"],
+    responseShape: { root: "data.items[]", itemKey: "author" },
   },
   {
     platform: "douyin",
@@ -9862,6 +10939,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Trending",
+    tags: ["douyin"],
+    responseShape: { root: "data.items[]" },
   },
   // --- github (12 endpoints) ---
   {
@@ -9881,6 +10960,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns public profile information for a GitHub user (login, name, avatar, bio, follower / following / public-repos counts, and account-creation date) mapped to the unified Author schema. `author.likes_count` surfaces `public_gists` (a creation-count analog); `author.verified` surfaces the rare `site_admin` flag (true only for GitHub staff accounts).",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["github"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "github",
@@ -9899,6 +10980,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns repository metadata (full_name, description, stars, forks, open issues, watchers, language, and creation date) mapped to the unified Author schema. A repo is a follow-able creator-like entity in this API: stars map to `author.followers`, watchers (subscribers) to `author.likes_count`, forks to `author.following`. Use `/v1/github/repo/readme`, `/v1/github/repo/releases`, and `/v1/github/repo/issues` for richer per-repo data.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["github"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "github",
@@ -9924,6 +11007,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the public repositories owned by the user under `data.items[]`: each entry includes `id`, `name`, `full_name`, `description`, `language`, `stargazers_count`, `forks_count`, `created_at`, and `pushed_at`. Sortable by `created`, `updated`, `pushed`, or `full_name`. Use `/v1/github/repo` for a single richer repo dossier.",
     pagination: { style: "page", nativeParam: "page", limitParam: "per_page" },
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["github"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "github",
@@ -9942,6 +11027,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the repository's README in raw form (the file contents, not base64-wrapped). The fetcher sets `Accept: application/vnd.github.raw+json` so the response body is the actual file. Useful for content discovery and AI-grounding workflows.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["github"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "github",
@@ -9964,6 +11051,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns the most recent releases for the repository under `data.items[]`: each entry includes `tag_name`, `name`, `body` (markdown release notes), `published_at`, `prerelease`, and `assets[]`. Sorted newest-first by upstream default.",
     pagination: { style: "page", nativeParam: "page", limitParam: "per_page" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["github"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "github",
@@ -9992,6 +11081,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns issues for the repository under `data.items[]`. NOTE: GitHub treats pull requests as issues for this endpoint: every PR also appears here, distinguishable by the presence of a `pull_request` field on the item. Filter by `state`, comma-separated `labels`, sort by `created`/`updated`/`comments`, and paginate with `per_page`/`page`. `since` accepts an ISO 8601 timestamp.",
     pagination: { style: "page", nativeParam: "page", limitParam: "per_page" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["github"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "github",
@@ -10010,6 +11101,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns full metadata for an issue or PR (title, body, author, labels, state, reactions, comments count, and timestamps) mapped to the unified Post schema. Pass either an `/issues/N` or `/pull/N` URL; GitHub's API treats them interchangeably under `/issues/N`. Use `/v1/github/issue/comments` for the discussion thread.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["github"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "github",
@@ -10033,6 +11126,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns comments under `data.items[]`: each entry includes `id`, `user.login`, `body`, `reactions.total_count`, and `created_at`. Pass either an `/issues/N` or `/pull/N` URL; both resolve to the same comment thread on GitHub's API. Comments are returned in ascending `created_at` order (GitHub does not support re-sorting a single issue's comments).",
     pagination: { style: "page", nativeParam: "page", limitParam: "per_page" },
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["github"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   {
     platform: "github",
@@ -10057,6 +11152,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches issues and PRs across all of GitHub via the `/search/issues` endpoint. Supports GitHub's full search syntax: qualifiers like `repo:owner/name`, `is:issue`, `is:pr`, `is:open`, `label:bug`, `created:>2026-01-01`, `author:username`, `comments:>10`. Sort by `reactions`, `comments`, `created`, or `updated`. Results land under `data.items[]` with `total_count` and `incomplete_results` siblings. Rate-limited to 30 req/min per token.",
     pagination: { style: "page", nativeParam: "page", limitParam: "per_page" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["github"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "github",
@@ -10075,6 +11172,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Composite endpoint: runs two `/search/issues` queries in parallel: `top_feature_request` (issues with `enhancement` label, sorted by reactions; falls back to top open issue by reactions if no label exists) and `top_complaint` (most-discussed open issue, sorted by comments). Returns `{ top_feature_request, top_complaint }`. 5 credits per call.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["github"],
   },
   {
     platform: "github",
@@ -10093,6 +11191,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Composite endpoint: fetches repo metadata, README excerpt, latest 3 releases, top feature request, and top complaint in parallel and returns a structured dossier `{ info, readme, releases, top_issues }`. Useful for AI-grounding workflows where a single call should return everything you'd need to summarise a project. 5 credits per call.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["github"],
   },
   {
     platform: "github",
@@ -10113,6 +11212,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Composite endpoint: combines a `/search/issues` PR-velocity query (total + merged), the user's own repo list, and parallel per-repo enrichment (stars + releases for external repos; README + releases + top-issues for own repos) into a structured contribution dossier `{ velocity, contributed_repos[], own_repos[] }`. The `depth` param controls fan-out width: `quick` enriches up to 5 external + 3 own repos, `default` 10 + 5, `deep` 15 + 5. 10 credits per call.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["github"],
   },
   // --- tavily (4 endpoints) ---
   {
@@ -10147,6 +11247,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Runs a web search via Tavily and returns ranked results plus an optional LLM-generated `answer` synthesised from the top sources. Set `include_answer=true` to enable answer synthesis. Use `search_depth=advanced` for higher-relevance results (also unlocks `chunks_per_source`). Filter results to specific domains via `include_domains` (comma-separated), or exclude via `exclude_domains`. Time-bounded queries via `time_range` (`d` / `w` / `m` / `y`) or explicit `start_date` / `end_date` (YYYY-MM-DD).",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["tavily"],
   },
   {
     platform: "tavily",
@@ -10171,6 +11272,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Pulls clean, AI-ready text out of one or more URLs via Tavily's extractor. Pass a single URL or a comma-separated list (max 20). Returns extracted content per URL alongside any URLs that failed extraction. Use `extract_depth=advanced` for harder pages (paywalls, JS-heavy SPAs).",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["tavily"],
   },
   {
     platform: "tavily",
@@ -10201,6 +11303,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the sitegraph of a website starting from a root URL: a list of discovered URLs without their full content. Cheaper and faster than crawl when you only need to enumerate pages (e.g. for sitemap discovery or coverage analysis). Use `instructions` to guide the mapper in natural language and the `select_*` / `exclude_*` filters (regex patterns, comma-separated) to narrow scope.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["tavily"],
   },
   {
     platform: "tavily",
@@ -10232,6 +11335,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Multi-page crawl starting from a root URL. Returns each crawled page with its extracted content (unlike map, which returns only URLs). Use `instructions` to guide the crawler in natural language. Tavily uses an LLM to follow only the paths matching your intent. Use `select_*` / `exclude_*` filters (comma-separated regex patterns) to constrain scope.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["tavily"],
   },
   // --- naver (14 endpoints) ---
   {
@@ -10256,6 +11360,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches naver.com/blog. Korea's dominant long-form blogging platform. Returns ranked posts under `data.items[]` with `title`, `link`, `description` (both HTML-tagged with `<b>` around matched keywords), `bloggername`, `bloggerlink`, and a day-precision `published_at` (ISO-8601 UTC, from Naver's YYYYMMDD `postdate`).",
     pagination: { style: "offset", nativeParam: "start", limitParam: "display" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["naver"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "naver",
@@ -10279,6 +11385,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches news.naver.com: aggregated Korean news from licensed publishers. Returns articles under `data.items[]` with `title`, `originallink` (publisher URL), `link` (naver-hosted URL), `description`, and `pubDate` (RFC 1123).",
     pagination: { style: "offset", nativeParam: "start", limitParam: "display" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["naver"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "naver",
@@ -10302,6 +11410,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches terms.naver.com. Naver Knowledge Encyclopedia, a curated reference corpus aggregating dictionaries, technical references, and editorial knowledge entries. Returns entries under `data.items[]` with `title`, `link`, `description`, and `thumbnail`.",
     pagination: { style: "offset", nativeParam: "start", limitParam: "display" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["naver"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "naver",
@@ -10325,6 +11435,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches cafe.naver.com. Korea's largest user-community platform (analog of Reddit subreddits / Discord servers). Returns cafe posts under `data.items[]` with `title`, `link`, `description`, `cafename`, and `cafeurl`. Many cafes are member-gated; the `link` URL works only if the caller has joined the cafe (Naver returns a teaser otherwise).",
     pagination: { style: "offset", nativeParam: "start", limitParam: "display" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["naver"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "naver",
@@ -10348,6 +11460,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches kin.naver.com. Korea's dominant Q&A community (analog of StackOverflow + Quora for the general public). Returns Q&A threads under `data.items[]` with `title`, `link`, and `description` (typically a question or answer excerpt).",
     pagination: { style: "offset", nativeParam: "start", limitParam: "display" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["naver"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "naver",
@@ -10370,6 +11484,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches map.naver.com places. Korean business / point-of-interest catalog. Returns places under `data.items[]` with `title`, `link`, `category`, `description`, `telephone`, `address` (legal-district), `roadAddress` (street), `mapx` / `mapy` (KATEC coordinates). Note: this corpus behaves differently from the others. `display` is capped at 5 and Naver SILENTLY CLAMPS anything higher rather than erroring, and `start` is ignored entirely, so **`local` cannot be paginated**: every page returns the same first 5 places. Verified live 2026-08-03.",
     singlePage: "Naver ignores `start` on the local corpus and caps `display` at 5, so there is exactly one page of results. Verified live 2026-08-03.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["naver"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "naver",
@@ -10394,6 +11510,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches Naver Image: image search across crawled Korean web. Returns images under `data.items[]` with `title`, `link` (image URL), `thumbnail` (preview URL), `sizeheight`, and `sizewidth`. Narrow to a size band with `filter`.",
     pagination: { style: "offset", nativeParam: "start", limitParam: "display" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["naver"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "naver",
@@ -10417,6 +11535,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches Naver web index: general Korean web search (analog of Google web search, scoped to Naver's crawl of the Korean-language web). Returns pages under `data.items[]` with `title`, `link`, and `description`.",
     pagination: { style: "offset", nativeParam: "start", limitParam: "display" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["naver"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "naver",
@@ -10435,6 +11555,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns Naver's suggested correction for a mistyped Korean query under `data.errata`. Korean typos usually come from hitting the wrong jamo key rather than misspelling a whole word, so a naive edit-distance check does not catch them; this is Naver's own correction used on its search box. An empty `errata` string means the query was already spelled correctly, which is a successful answer, not an error. Latin-script queries also return an empty string.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["naver"],
   },
   {
     platform: "naver",
@@ -10453,6 +11574,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns `data.adult` as `\"1\"` when Naver classifies the search term as adult-only and `\"0\"` when it does not. Note both are STRINGS, not booleans. Useful for moderating user-supplied Korean search input before you run it against another endpoint, or for filtering a keyword list you intend to publish.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["naver"],
   },
   {
     platform: "naver",
@@ -10480,6 +11602,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns a relative search-interest time series for a group of Korean keywords from Naver Data Lab, under `data.results[].data[]` as `{period, ratio}` pairs. This is Korea's equivalent of Google Trends, and for the Korean market it is the more meaningful signal because Naver carries the majority of Korean search. Note the keywords form ONE combined series (their volumes are summed), not one series each; to compare terms against each other, call the endpoint once per term. IMPORTANT: `ratio` is a RELATIVE index scaled 0-100 within the window you requested, not an absolute search count, so values are not comparable between two different requests. History starts 2016-01-01; an earlier `start_date` is clamped up to it. A keyword with no measurable volume returns no data points and is not charged.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["naver"],
   },
   {
     platform: "naver",
@@ -10507,6 +11630,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns a relative click-share time series for up to 3 Naver Shopping categories under `data.results[].data[]` as `{period, ratio}` pairs. Set `breakdown` to split one category by `device`, `gender`, or `age` instead of comparing categories. Partly fills the gap left by Naver retiring its Shopping SEARCH corpus on 2026-07-31: this gives demand and click TRENDS for a category, though not individual product listings or prices, which no Naver API offers any more. `ratio` is a relative index within the requested window, not an absolute count. Shopping Insight history starts 2017-08-01 (later than search-trend's 2016-01-01); an earlier `start_date` is clamped up to it. An unknown category id returns no data points and is not charged.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["naver"],
   },
   {
     platform: "naver",
@@ -10535,6 +11659,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns a relative click-share time series for up to 5 search keywords WITHIN one Naver Shopping category, under `data.results[].data[]` as `{period, ratio}` pairs. Each keyword gets its OWN comparable series, so this is the endpoint for questions like which product term is gaining share inside 패션의류. Set `breakdown` to split a single keyword by `device`, `gender`, or `age`. `ratio` is a relative index within the requested window, not an absolute count. Shopping Insight history starts 2017-08-01 (later than search-trend's 2016-01-01); an earlier `start_date` is clamped up to it. A keyword with no measurable clicks returns no data points and is not charged.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["naver"],
   },
   {
     platform: "naver",
@@ -10561,8 +11686,10 @@ export const ENDPOINTS: Endpoint[] = [
       "Fans a single query across Naver News, Blog, Café (community), 지식iN (Q&A), and the Korean web index in parallel, returning each corpus's raw items with the original Korean preserved, plus a volume-by-corpus map and top recent blogs. Add `include=digest` for an English translated synthesis with pull-quotes. The Korea-market brief no western data vendor can produce: all five corpora are native Naver. Paginate each corpus via the opaque `cursor`. Flat 10cr; coverage-based partial refund when a majority of corpora fail. Note `computed.shop_price_range` is retained as a permanent `null` for response-shape stability: Naver retired its Shopping search corpus on 2026-07-31 and offers no replacement.",
     execution: "sync",
     pagination: { style: "cursor", nativeParam: "cursor", limitParam: "display" },
+    paginatable: true,
     cache: { category: "search", ttlSeconds: 120 },
     family: "prism",
+    tags: ["naver", "prism"],
   },
   // --- rumble (5 endpoints) ---
   {
@@ -10585,6 +11712,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches Rumble videos by keyword. Returns matching videos and shorts with title, URL, thumbnail, channel, published date, view-count text + integer, plus a numeric cursor for the next page.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["rumble"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "rumble",
@@ -10606,6 +11735,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns channel metadata, videos, shorts, and a numeric cursor for the next page. Pass either `handle` or `url`.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["rumble"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "rumble",
@@ -10624,6 +11755,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns title, description, thumbnail, channel, publish date, view count, likes, dislikes, captions, and media metadata when available.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["rumble"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "rumble",
@@ -10642,6 +11775,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the transcript for a Rumble video when captions are available. If Rumble doesn't expose captions, `transcript` is `null` and credits are not deducted.",
     cache: { category: "immutable", ttlSeconds: 2592000 },
+    tags: ["rumble"],
   },
   {
     platform: "rumble",
@@ -10661,6 +11795,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns all top-level comments for a Rumble video: comment text, author, `createdAt`, `createdAtText`, `likeCount`, `dislikeCount`, and `replyCount` when comment bodies are public.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "comments", ttlSeconds: 300 },
+    tags: ["rumble"],
+    responseShape: { root: "data.items[]", itemKey: "comment" },
   },
   // --- bluesky (3 endpoints) ---
   {
@@ -10680,6 +11816,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns a Bluesky user's public profile: handle, displayName, avatar, description, followersCount, followsCount, postsCount, createdAt, and verification status.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["bluesky"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "bluesky",
@@ -10700,6 +11838,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns a feed of posts for a Bluesky user: uri, record text, author info, embeds, replyCount, repostCount, likeCount, quoteCount, and indexedAt. Pass either `handle` or `user_id` (Bluesky calls user IDs `did`).",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["bluesky"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   {
     platform: "bluesky",
@@ -10718,6 +11858,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns a single Bluesky post: record text, author info, embeds, replyCount, repostCount, likeCount, quoteCount, and a threaded `replies` array.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["bluesky"],
+    responseShape: { root: "data.post" },
   },
   // --- spotify (6 endpoints) ---
   {
@@ -10738,6 +11880,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns artist metadata: id, name, followers, genres, and related artists. Pass either `id` or `url`.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["spotify"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "spotify",
@@ -10757,6 +11901,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns track metadata: artists, album info, duration, playability, and sharing details. Pass either `id` or `url`.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["spotify"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "spotify",
@@ -10776,6 +11922,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns album metadata: artists, release date, cover art, copyright info, tracks, and sharing details. Pass either `id` or `url`.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["spotify"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "spotify",
@@ -10795,6 +11943,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Searches Spotify playlists matching a query. Note (DR-MS-09): the upstream currently returns Playlist results only, not the full track/artist/album/episode/podcast/audiobook mix: treat non-playlist result types as unavailable until this is expanded.",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["spotify"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "spotify",
@@ -10814,6 +11964,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns podcast metadata. Spotify calls podcasts `shows` internally, so Spotify podcast URLs use `/show/`. Pass either `id` or `url`.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["spotify"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "spotify",
@@ -10835,6 +11987,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns episodes for a Spotify podcast. Pass the `cursor` from the previous response to fetch the next page.",
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["spotify"],
+    responseShape: { root: "data.items[]", itemKey: "post" },
   },
   // --- apple_music (4 endpoints) ---
   {
@@ -10857,6 +12011,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns Apple Music search results for a query. Pass `type` to restrict the result kind (for example song, album, or artist).",
     singlePage: "Fixed-window feed: upstream returns a single non-cursored result set.",
     cache: { category: "search", ttlSeconds: 120 },
+    tags: ["apple_music"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "apple_music",
@@ -10876,6 +12032,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns artist metadata: id, name, artwork, and the Apple Music artist URL. Pass either `id` or `url`.",
     cache: { category: "profile", ttlSeconds: 900 },
+    tags: ["apple_music"],
+    responseShape: { root: "data.author" },
   },
   {
     platform: "apple_music",
@@ -10895,6 +12053,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns album metadata: title, artist, artwork, track count, and the Apple Music album URL. Pass either `id` or `url`.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["apple_music"],
+    responseShape: { root: "data.post" },
   },
   {
     platform: "apple_music",
@@ -10914,6 +12074,8 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns track metadata: title, artist, duration, preview audio URL, and the Apple Music track URL. Pass either `id` or `url`.",
     cache: { category: "post", ttlSeconds: 600 },
+    tags: ["apple_music"],
+    responseShape: { root: "data.post" },
   },
   // --- search (4 endpoints) ---
   {
@@ -10942,6 +12104,7 @@ export const ENDPOINTS: Endpoint[] = [
     streaming: "accept-header",
     cache: { category: "search", ttlSeconds: 120 },
     family: "prism",
+    tags: ["search"],
   },
   {
     platform: "search",
@@ -10968,6 +12131,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "search", ttlSeconds: 120 },
     family: "prism",
+    tags: ["search"],
   },
   {
     platform: "search",
@@ -10994,6 +12158,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "search", ttlSeconds: 120 },
     family: "prism",
+    tags: ["search"],
   },
   {
     platform: "search",
@@ -11024,6 +12189,7 @@ export const ENDPOINTS: Endpoint[] = [
     streaming: "accept-header",
     cache: { category: "search", ttlSeconds: 300 },
     family: "prism",
+    tags: ["search"],
   },
   // --- prism (33 endpoints) ---
   {
@@ -11047,6 +12213,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "post", ttlSeconds: 600 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11073,8 +12240,10 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sse",
     streaming: "accept-header",
     pagination: { style: "cursor", nativeParam: "cursor", limitParam: "limit" },
+    paginatable: true,
     cache: { category: "comments", ttlSeconds: 300 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11101,6 +12270,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11130,6 +12300,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "comments", ttlSeconds: 300 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11156,6 +12327,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11167,7 +12339,7 @@ export const ENDPOINTS: Endpoint[] = [
     optionalParams: [
       { name: "prompts", type: "string", description: "The category prompts to probe, as a JSON array or a pipe-delimited list (1-20). One of prompts or topic is required." },
       { name: "topic", type: "string", description: "A topic probed as a single prompt in v1 (one of prompts or topic is required).", example: "social media data api" },
-      { name: "competitors", type: "string", description: "CSV of up to 5 competitors also measured for appearance-% from the same answers.", example: "apify,bright data" },
+      { name: "competitors", type: "string", description: "CSV of up to 5 competitors also measured for appearance-% from the same answers.", example: "competitor one,competitor two" },
       { name: "engines", type: "string", description: "CSV subset of perplexity,grok (default both): the grounded-answer engines probed." },
       { name: "runs", type: "integer", description: "Reruns per (prompt, engine) to measure variance (1-20, default 8)." },
       { name: "preset", type: "enum", enumValues: ["quick", "standard", "deep"], description: "quick|standard|deep: sets runs and caps prompts for a flat probe budget.", example: "standard" },
@@ -11177,7 +12349,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [["topic", "prompts"]],
     creditTier: "advanced",
     creditCost: 2,
-    pricing: { cost: 2, tier: "advanced", ladderCost: 5, model: "metered", minCost: 2, maxCost: 1605 },
+    pricing: { cost: 2, tier: "advanced", ladderCost: 5, model: "metered", minCost: 2, maxCost: 1605, description: "2 credits per probe, where a probe is one prompt run once on one engine, so the charge is `2 x prompts x runs x engines`. On the defaults (both engines, 8 runs) a 5-prompt audit is 160 credits. `include=web_baseline` adds a flat 5. The 1,605 ceiling is the 20-prompt, 20-run, two-engine worst case with the baseline on - `preset=quick` holds far less, and the hold settles down to the probes that actually completed" },
     archetype: "Analytics",
     summary: "AI Share-of-Voice / GEO monitoring: prompt set x reruns to per-brand appearance-% per AI engine plus a cited-domain ranking.",
     description:
@@ -11185,6 +12357,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "search", ttlSeconds: 120 },
     family: "prism",
+    tags: ["prism", "geo", "ai-search"],
   },
   {
     platform: "prism",
@@ -11210,6 +12383,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11227,7 +12401,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "advanced",
     creditCost: 15,
-    pricing: { cost: 15, tier: "advanced", ladderCost: 5, model: "metered", minCost: 15, maxCost: 45 },
+    pricing: { cost: 15, tier: "advanced", ladderCost: 5, model: "metered", minCost: 15, maxCost: 45, description: "15 credits for the baseline breach check. `confirm=true` escalates to the full 45-credit investigation. Run the baseline first and escalate only when it reports a breach: that is the whole point of the two-step shape" },
     archetype: "Analytics",
     summary: "Stateless crisis breach check: a z-score on daily mention volume and negative share, with on-breach confirmation and a severity grade.",
     description:
@@ -11235,6 +12409,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11261,6 +12436,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11286,6 +12462,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11312,6 +12489,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11339,6 +12517,7 @@ export const ENDPOINTS: Endpoint[] = [
     pagination: { style: "cursor", nativeParam: "cursor" },
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11365,6 +12544,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11390,6 +12570,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11419,6 +12600,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11446,6 +12628,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11472,6 +12655,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11499,6 +12683,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11526,6 +12711,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11542,7 +12728,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "premium",
     creditCost: 26,
-    pricing: { cost: 26, tier: "premium", ladderCost: 10, model: "metered", minCost: 6, maxCost: 51 },
+    pricing: { cost: 26, tier: "premium", ladderCost: 10, model: "metered", minCost: 6, maxCost: 51, description: "1 credit for the org read plus 5 per repository expanded into a dossier. The default of 5 repos is 26 credits, a single repo is 6, and the 10-repo maximum is 51. Set `repos` to bound it before calling" },
     archetype: "Analytics",
     summary: "A GitHub org's footprint: its top repos each expanded into a full dossier (releases, issue load, top request/complaint), rolled up.",
     description:
@@ -11550,6 +12736,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11566,7 +12753,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "premium",
     creditCost: 50,
-    pricing: { cost: 50, tier: "premium", ladderCost: 10, model: "metered", minCost: 50, maxCost: 75 },
+    pricing: { cost: 50, tier: "premium", ladderCost: 10, model: "metered", minCost: 50, maxCost: 75, description: "50 credits for the standard vet. `include=cross_platform` raises it to 75 for the cross-platform identity check on top" },
     archetype: "Analytics",
     summary: "Vet a creator before partnering: engagement quality, commenter authenticity, posting cadence, and controversy signals, optionally across platforms.",
     description:
@@ -11574,6 +12761,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11591,7 +12779,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "premium",
     creditCost: 40,
-    pricing: { cost: 40, tier: "premium", ladderCost: 10, model: "metered", minCost: 15, maxCost: 40 },
+    pricing: { cost: 40, tier: "premium", ladderCost: 10, model: "metered", minCost: 15, maxCost: 40, description: "15 credits for the web-only read. The default `include` carries the social leg, which makes the call 40; pass an `include` without `social` to stay at 15" },
     archetype: "Analytics",
     summary: "What the world is talking about that Korea isn't (and vice versa): the global vs Korean (Naver) conversation gap for a brand/topic.",
     description:
@@ -11599,6 +12787,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11618,7 +12807,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "premium",
     creditCost: 40,
-    pricing: { cost: 40, tier: "premium", ladderCost: 10, model: "metered", minCost: 20, maxCost: 200 },
+    pricing: { cost: 40, tier: "premium", ladderCost: 10, model: "metered", minCost: 20, maxCost: 200, description: "40 credits per brand with the social leg, which is the default, or 20 per brand for the web-only read. Up to 5 brands per call, so the 200-credit ceiling is 5 brands with social and dropping `social` from `include` halves it. Price the call as `brands x per-brand` before you send it - this is the most expensive composite on the API" },
     archetype: "Analytics",
     summary: "Engagement-weighted Share of Voice across 2-5 brands, with web+social split, emotion overlay, and ESOV.",
     description:
@@ -11626,6 +12815,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11650,6 +12840,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11674,6 +12865,7 @@ export const ENDPOINTS: Endpoint[] = [
     streaming: "always",
     cache: { category: "search", ttlSeconds: 120 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11689,7 +12881,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 15 },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 15, description: "5 credits for the video detail, stats and comments. `include=transcript` adds 10, which is exactly what the standalone transcript endpoint charges, so the bundle never costs more than running the two calls yourself" },
     archetype: "Analytics",
     summary: "One video URL → detail + stats + transcript + top comments + commenter sample, across YouTube/TikTok/Rumble/Instagram.",
     description:
@@ -11698,6 +12890,7 @@ export const ENDPOINTS: Endpoint[] = [
     streaming: "include=transcript",
     cache: { category: "post", ttlSeconds: 600 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11708,7 +12901,7 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     optionalParams: [
       { name: "platforms", type: "string", description: "CSV subset of twitter,threads,bluesky,truthsocial (default all four).", example: "twitter,threads,bluesky,truthsocial" },
-      { name: "cursor", type: "string", description: "Opaque per-platform pagination token from a prior response's cursors_by_platform (twitter is a single non-paginatable page)." },
+      { name: "cursor", type: "string", description: "Opaque composite cursor from a prior response's `next_cursor`. X/Twitter pages; Truth Social pages on `next_max_id`; a mangled token is a 400 at 0 credits." },
       { name: "include", type: "string", description: "CSV subset of posts_by_platform,merged_timeline,computed to trim the payload (posts_by_platform is always returned)." },
     ],
     oneOfGroups: [],
@@ -11718,11 +12911,13 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "One person's public posts across X, Threads, Bluesky, and Truth Social, time-merged.",
     description:
-      "Fetches a handle's recent posts from four microblogs in parallel, time-merges them into one chronological feed, and computes platform presence, a cross-post rate, and a per-platform tone label (a soft LLM heuristic that degrades to absent on failure). Microblogs the handle isn't on return empty arrays with `platform_presence:false`: the absence map is the product. Flat 5cr; all-miss → full refund. The `legs[]` block reports each leg's status, cost, and latency. v1 is list-level (no per-post detail drill).",
+      "Fetches a handle's recent posts from four microblogs in parallel, time-merges them into one chronological feed, and computes platform presence, a cross-post rate, and a per-platform tone label (a soft LLM heuristic that degrades to absent on failure). Microblogs the handle isn't on return empty arrays with `platform_presence:false`: the absence map is the product. Flat 5cr; all-miss → full refund. The `legs[]` block reports each leg's status, cost, and latency. X pages: pass a prior `next_cursor` back as `cursor`. v1 is list-level (no per-post detail drill).",
     execution: "sync",
     pagination: { style: "cursor", nativeParam: "cursor" },
+    paginatable: true,
     cache: { category: "post", ttlSeconds: 600 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11742,7 +12937,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [["google_play_id", "app_store_id", "query"]],
     creditTier: "advanced",
     creditCost: 15,
-    pricing: { cost: 15, tier: "advanced", ladderCost: 5, model: "metered", minCost: 10, maxCost: 15 },
+    pricing: { cost: 15, tier: "advanced", ladderCost: 5, model: "metered", minCost: 10, maxCost: 15, description: "10 credits for one store, 15 for both. A bare `query` resolves both stores and costs 15; naming a single store in `stores`, or passing only one of `google_play_id` / `app_store_id`, costs 10" },
     archetype: "Analytics",
     summary: "Cross-store app review intelligence (Google Play + App Store): translated, clustered, sentiment-scored.",
     description:
@@ -11751,6 +12946,7 @@ export const ENDPOINTS: Endpoint[] = [
     streaming: "accept-header",
     cache: { category: "comments", ttlSeconds: 300 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11766,7 +12962,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "advanced",
     creditCost: 5,
-    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 8 },
+    pricing: { cost: 5, tier: "advanced", ladderCost: 5, model: "metered", minCost: 5, maxCost: 8, description: "5 credits covering any 4 platforms, plus 1 credit per platform beyond 4. The default selection is 4 platforms, so the 7-platform maximum is 8 credits" },
     archetype: "Analytics",
     summary: "One handle, unified author cards across TikTok, Instagram, YouTube, X (and more).",
     description:
@@ -11774,6 +12970,7 @@ export const ENDPOINTS: Endpoint[] = [
     execution: "sync",
     cache: { category: "profile", ttlSeconds: 900 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11798,6 +12995,7 @@ export const ENDPOINTS: Endpoint[] = [
     cache: { category: "analytics", ttlSeconds: 1800 },
     family: "prism",
     contractDetails: ["Supported platforms are tiktok, instagram, youtube, twitter, threads, bluesky, truthsocial. Default platforms are tiktok, instagram, youtube, twitter. Optional platforms are threads, bluesky, truthsocial. Reddit is deferred and not supported.", "Any unknown platform rejects the whole request with HTTP 400 before billing.", "The identity may be a bare handle or canonical supported profile URL. A YouTube channel ID is YouTube-only: omit `platforms` to audit YouTube or set `platforms=youtube`; other canonical profile URLs do not narrow the default fanout.", "YouTube sampled-post collection sends includeExtras=true.", "Profile evidence states are live, stale, not_found, and unavailable. Posts evidence states are sampled, observed_empty, not_supported, not_found, and unavailable. Stale platforms are also listed in `stale_platforms`. Unknown numeric values are null, not zero, and decision-grade post evidence is required for scoring.", "`observed_empty` is decision-grade evidence of an empty posting history; `days_since_last_post`, `media_fraction`, `avg_text_length`, and the `content_richness` score stay null because no posts were observed.", "Explicitly empty text is observed as length 0 and explicitly empty media is observed as false; unknown text or media stays null. Content-richness uses known-only inputs and re-normalizes across the known inputs instead of treating unknowns as zero.", "`legs[]` is emitted in stable plan order. A genuinely pending leg abandoned at the global deadline is synthesized as 504 / UPSTREAM_TIMEOUT / 0 credits; an early rejected dispatch is 502 / UPSTREAM_ERROR / 0 credits, including when compatible stale evidence recovers the response. A terminal profile failure emits no speculative posts leg.", "Scores are reproducible only when `score_version` and `evidence_fingerprint` are unchanged; score and evidence fields can be null when decision-grade evidence is unavailable.", "Collection has a 6.4-second default budget, a 6.5-second hard cap, and a 7-second public API target. These are configured targets, not measured v2 performance.", "Process-local monotonic last-known-good ordering prevents older writers within one process; global atomic CAS remains future work."],
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11812,7 +13010,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "flat", description: "1 credit per successful URL on most platforms, 5 on Instagram and LinkedIn, charged at each URL's own platform rate. Up to 100 URLs per call: the call holds the summed worst case up front (a 100-URL Instagram batch holds 500) and refunds every dead, errored and unsupported URL, so you pay for exactly the rows that returned counts" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 500, description: "1 credit per successful URL on most platforms, 5 on Instagram and LinkedIn, charged at each URL's own platform rate. Up to 100 URLs per call: the call holds the summed worst case up front (a 100-URL Instagram batch holds 500) and refunds every dead, errored and unsupported URL, so you pay for exactly the rows that returned counts" },
     archetype: "Analytics",
     summary: "Up to 100 mixed-platform post URLs → current engagement per URL, failed URLs refunded.",
     description:
@@ -11821,6 +13019,7 @@ export const ENDPOINTS: Endpoint[] = [
     streaming: "accept-header",
     cache: { category: "post", ttlSeconds: 0 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11833,7 +13032,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 2,
-    pricing: { cost: 2, tier: "standard", ladderCost: 1, model: "flat", description: "2 credits per found TikTok item and 5 per found Instagram item, raised by `deep_scan`. Up to 25 items per call: the whole batch holds at most 100 credits up front and refunds every not_found, errored and deferred item" },
+    pricing: { cost: 2, tier: "standard", ladderCost: 1, model: "metered", minCost: 2, maxCost: 100, description: "2 credits per found TikTok item and 5 per found Instagram item, raised by `deep_scan`. Up to 25 items per call: the whole batch holds at most 100 credits up front and refunds every not_found, errored and deferred item" },
     archetype: "Analytics",
     summary: "Re-check up to 25 known comments in one call: per-item results, failed items refunded.",
     description:
@@ -11842,6 +13041,7 @@ export const ENDPOINTS: Endpoint[] = [
     streaming: "accept-header",
     cache: { category: "comments", ttlSeconds: 0 },
     family: "prism",
+    tags: ["prism"],
   },
   {
     platform: "prism",
@@ -11854,7 +13054,7 @@ export const ENDPOINTS: Endpoint[] = [
     oneOfGroups: [],
     creditTier: "standard",
     creditCost: 1,
-    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "flat", description: "1 credit per successful row on most platforms and 5 on LinkedIn, charged at each handle's own platform tier. Up to 50 items per call: the call holds the summed worst case up front and refunds every not_found, unsupported, errored and deferred row" },
+    pricing: { cost: 1, tier: "standard", ladderCost: 1, model: "metered", minCost: 1, maxCost: 250, description: "1 credit per successful row on most platforms and 5 on LinkedIn, charged at each handle's own platform tier. Up to 50 items per call: the call holds the summed worst case up front and refunds every not_found, unsupported, errored and deferred row" },
     archetype: "Analytics",
     summary: "Up to 50 (platform, handle) pairs → one canonical Author per row, failed handles refunded.",
     description:
@@ -11863,6 +13063,7 @@ export const ENDPOINTS: Endpoint[] = [
     streaming: "accept-header",
     cache: { category: "profile", ttlSeconds: 0 },
     family: "prism",
+    tags: ["prism"],
   },
   // --- content_analysis (10 endpoints) ---
   {
@@ -11878,7 +13079,7 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "limit", type: "integer", description: "Number of citations to return per page (1-100, default 10). Paginate via `cursor` for more.", example: "10" },
       { name: "cursor", type: "string", description: "Opaque pagination cursor: pass the `next_cursor` from the previous response to fetch the next page." },
       { name: "order_by", type: "string", description: "Sort rules as \"field,direction\"; separate multiple rules with \";\" (e.g. content_info.sentiment_connotations.anger,desc)." },
-      { name: "filters", type: "string", description: "Advanced DataForSEO filter expression as a JSON array (≤8 conditions). Combined with page_type via AND when both are present." },
+      { name: "filters", type: "string", description: "Advanced filter expression as a JSON array (≤8 conditions). Combined with page_type via AND when both are present." },
     ],
     oneOfGroups: [],
     creditTier: "advanced",
@@ -11887,9 +13088,10 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "Search web citations of a keyword with per-mention sentiment",
     description:
-      "Returns paginated web citations (news, blogs, ecommerce, message-boards, organization pages) that mention the keyword, each scored on a 6-axis emotional sentiment model (anger, happiness, love, sadness, share, fun) plus positive/negative/neutral connotation probabilities. This is web-wide brand listening over DataForSEO's citation database: page-level mentions, not native platform posts. Cursor-paginated via `cursor`; `total` is the global match count, not the page size.",
+      "Returns paginated web citations (news, blogs, ecommerce, message-boards, organization pages) that mention the keyword, each scored on a 6-axis emotional sentiment model (anger, happiness, love, sadness, share, fun) plus positive/negative/neutral connotation probabilities. This is web-wide brand listening over a web-wide citation index: page-level mentions, not native platform posts. Cursor-paginated via `cursor`; `total` is the global match count, not the page size.",
     pagination: { style: "cursor", nativeParam: "cursor", limitParam: "limit" },
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["content_analysis"],
   },
   {
     platform: "content_analysis",
@@ -11903,7 +13105,7 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "positive_connotation_threshold", type: "string", description: "Minimum positive-connotation probability (0-1, default 0.4) for a mention to count as positive." },
       { name: "sentiments_connotation_threshold", type: "string", description: "Minimum sentiment-connotation probability (0-1, default 0.4) for the 6-axis emotion buckets." },
       { name: "internal_list_limit", type: "integer", description: "Cap on internal arrays such as top_domains / categories (1-20)." },
-      { name: "filters", type: "string", description: "Advanced DataForSEO filter expression as a JSON array (≤8 conditions)." },
+      { name: "filters", type: "string", description: "Advanced filter expression as a JSON array (≤8 conditions)." },
     ],
     oneOfGroups: [],
     creditTier: "advanced",
@@ -11914,6 +13116,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns a single roll-up over every web citation of the keyword: total mention count, top domains, sentiment-connotation totals, positive/negative/neutral splits, top text + page categories, and breakdowns by page type, country, and language. The fastest way to size and characterize a brand's web-wide footprint in one call.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["content_analysis"],
   },
   {
     platform: "content_analysis",
@@ -11925,7 +13128,7 @@ export const ENDPOINTS: Endpoint[] = [
     optionalParams: [
       { name: "page_type", type: "enum", enumValues: ["ecommerce", "news", "blogs", "message-boards", "organization"], description: "Narrow to one or more page types (comma-separated): ecommerce, news, blogs, message-boards, organization." },
       { name: "positive_connotation_threshold", type: "string", description: "Minimum positive-connotation probability (0-1, default 0.4)." },
-      { name: "filters", type: "string", description: "Advanced DataForSEO filter expression as a JSON array (≤8 conditions)." },
+      { name: "filters", type: "string", description: "Advanced filter expression as a JSON array (≤8 conditions)." },
     ],
     oneOfGroups: [],
     creditTier: "advanced",
@@ -11934,8 +13137,9 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "Sentiment breakdown for a keyword",
     description:
-      "Returns two sentiment distributions for the keyword's web mentions: a positive/negative/neutral split (each a full summary sub-object) and a 6-axis emotional split (anger, happiness, love, sadness, share, fun: each a full summary sub-object). Sentiment is DataForSEO's model-derived NLP, passed through verbatim, not ground truth.",
+      "Returns two sentiment distributions for the keyword's web mentions: a positive/negative/neutral split (each a full summary sub-object) and a 6-axis emotional split (anger, happiness, love, sadness, share, fun: each a full summary sub-object). Sentiment is model-derived NLP, passed through verbatim, not ground truth.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["content_analysis"],
   },
   {
     platform: "content_analysis",
@@ -11946,7 +13150,7 @@ export const ENDPOINTS: Endpoint[] = [
     ],
     optionalParams: [
       { name: "page_type", type: "enum", enumValues: ["ecommerce", "news", "blogs", "message-boards", "organization"], description: "Narrow to one or more page types (comma-separated): ecommerce, news, blogs, message-boards, organization." },
-      { name: "filters", type: "string", description: "Advanced DataForSEO filter expression as a JSON array (≤8 conditions)." },
+      { name: "filters", type: "string", description: "Advanced filter expression as a JSON array (≤8 conditions)." },
     ],
     oneOfGroups: [],
     creditTier: "advanced",
@@ -11957,6 +13161,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns a 10-bucket histogram (0.0-0.1 … 0.9-1.0) of the relative ratings found across web mentions of the keyword. Each bucket carries a full summary sub-object (total_count, top_domains, sentiment, categories, page types, countries, languages) so you can see how sentiment and sources vary with rating. Best for products and review-heavy terms.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["content_analysis"],
   },
   {
     platform: "content_analysis",
@@ -11971,7 +13176,7 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "date_group", type: "enum", enumValues: ["day", "week", "month"], description: "Bucket size: day, week, or month (default month).", example: "month" },
       { name: "page_type", type: "enum", enumValues: ["ecommerce", "news", "blogs", "message-boards", "organization"], description: "Narrow to one or more page types (comma-separated): ecommerce, news, blogs, message-boards, organization." },
       { name: "internal_list_limit", type: "integer", description: "Cap on internal arrays per bucket (1-20)." },
-      { name: "filters", type: "string", description: "Advanced DataForSEO filter expression as a JSON array (≤8 conditions)." },
+      { name: "filters", type: "string", description: "Advanced filter expression as a JSON array (≤8 conditions)." },
     ],
     oneOfGroups: [],
     creditTier: "advanced",
@@ -11982,6 +13187,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns a time series (one row per day/week/month bucket) of mention volume and sentiment for the keyword over a date range. Each row is a full summary sub-object (total_count, sentiment, top domains, categories…). Track how a brand's web-wide mentions and sentiment move over time.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["content_analysis"],
   },
   {
     platform: "content_analysis",
@@ -11995,7 +13201,7 @@ export const ENDPOINTS: Endpoint[] = [
       { name: "date_to", type: "string", description: "End of the date range (yyyy-mm-dd); defaults to today." },
       { name: "date_group", type: "enum", enumValues: ["day", "week", "month"], description: "Bucket size: day, week, or month (default month).", example: "month" },
       { name: "internal_list_limit", type: "integer", description: "Cap on internal arrays per bucket (1-20)." },
-      { name: "filters", type: "string", description: "Advanced DataForSEO filter expression as a JSON array (≤8 conditions)." },
+      { name: "filters", type: "string", description: "Advanced filter expression as a JSON array (≤8 conditions) over the citation fields listed by /content_analysis/filters, applied before the buckets are counted. Example: [[\"country\",\"=\",\"DE\"]] for German-hosted citations, or [[\"language\",\"=\",\"de\"]] for German-language ones." },
     ],
     oneOfGroups: [],
     creditTier: "advanced",
@@ -12004,8 +13210,9 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "Category mention volume + sentiment over time",
     description:
-      "Like phrase-trends, but keyed on a category code from the /content_analysis/categories taxonomy instead of a keyword. Returns a time series of mention volume and sentiment for an entire content category (e.g. Apparel) over a date range. Note the different mental model: this trends a category, not a brand term.",
+      "Like phrase-trends, but keyed on a category code from the /content_analysis/categories taxonomy instead of a keyword. Returns a time series of mention volume and sentiment for an entire content category (e.g. Apparel) over a date range. Note the different mental model: this trends a category, not a brand term. With no filter every bucket covers citations from all countries, and its countries and languages maps are that bucket's breakdown; pass filters (for example country = DE) to count only one market's citations.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["content_analysis"],
   },
   {
     platform: "content_analysis",
@@ -12022,6 +13229,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the list of languages (name + ISO code) supported by the Content Analysis endpoints. Static reference data: use the codes to filter or interpret the `language` field on mentions. Heavily cached.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["content_analysis"],
   },
   {
     platform: "content_analysis",
@@ -12038,6 +13246,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the list of locations supported by the Content Analysis endpoints. Static reference data: use it to interpret the `country` field on mentions. Heavily cached.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["content_analysis"],
   },
   {
     platform: "content_analysis",
@@ -12054,6 +13263,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns the full content-category taxonomy (3,000+ nodes: category_code, category_name, parent code) used by Content Analysis. Use it to look up a `category_code` for the category-trends endpoint and to decode the numeric `text_category` arrays on mentions. Heavily cached.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["content_analysis"],
   },
   {
     platform: "content_analysis",
@@ -12068,8 +13278,9 @@ export const ENDPOINTS: Endpoint[] = [
     archetype: "Analytics",
     summary: "List the filterable fields for Content Analysis",
     description:
-      "Returns the map of filterable fields → value types (str, num, time, array.num, array.str) accepted by the advanced `filters` param on the search/summary/sentiment endpoints. Use it to build valid filter expressions. Heavily cached.",
+      "Returns the map of filterable fields → value types (str, num, time, array.num, array.str) accepted by the advanced `filters` param on search, summary, sentiment, rating-distribution, phrase-trends and category-trends. Use it to build valid filter expressions. Heavily cached.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["content_analysis"],
   },
   // --- on_page (1 endpoint) ---
   {
@@ -12091,6 +13302,7 @@ export const ENDPOINTS: Endpoint[] = [
     description:
       "Returns a technical on-page audit for one URL: title, meta, heading counts, on-page score, checks (HTTPS, canonical, broken links), and page timing. One credit per call.",
     cache: { category: "analytics", ttlSeconds: 1800 },
+    tags: ["on_page"],
   },
   // --- jobs (11 endpoints) ---
   {
@@ -12120,6 +13332,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Jobs",
+    tags: ["jobs"],
+    responseShape: { root: "data.items[]", itemKey: "job" },
   },
   {
     platform: "jobs",
@@ -12139,6 +13353,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one LinkedIn job: title, company, location, employment type, seniority, applicant count, description, and listing URL. Use an id from GET /v1/jobs/linkedin/search.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Jobs",
+    tags: ["jobs"],
+    responseShape: { root: "data.job" },
   },
   {
     platform: "jobs",
@@ -12159,6 +13375,8 @@ export const ENDPOINTS: Endpoint[] = [
     singlePage: "Fixed-window lookup: upstream returns one non-cursored page of organization ids.",
     cache: { category: "search", ttlSeconds: 120 },
     group: "Jobs",
+    tags: ["jobs"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "jobs",
@@ -12186,6 +13404,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Jobs",
+    tags: ["jobs"],
+    responseShape: { root: "data.items[]", itemKey: "job" },
   },
   {
     platform: "jobs",
@@ -12205,6 +13425,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one Indeed job: title, company, location, description, and apply URL. Use an id from GET /v1/jobs/indeed/search.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Jobs",
+    tags: ["jobs"],
+    responseShape: { root: "data.job" },
   },
   {
     platform: "jobs",
@@ -12231,6 +13453,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Jobs",
+    tags: ["jobs"],
+    responseShape: { root: "data.items[]", itemKey: "job" },
   },
   {
     platform: "jobs",
@@ -12250,6 +13474,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one Bing-aggregated job: title, company, location, employment type, description, and apply URL. Use an id from GET /v1/jobs/bing/search.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Jobs",
+    tags: ["jobs"],
+    responseShape: { root: "data.job" },
   },
   {
     platform: "jobs",
@@ -12278,6 +13504,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Jobs",
+    tags: ["jobs"],
+    responseShape: { root: "data.items[]", itemKey: "job" },
   },
   {
     platform: "jobs",
@@ -12297,6 +13525,8 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns one Xing job: title, company, location, employment type, remote option, salary range, description, and apply URL. Use an id from GET /v1/jobs/xing/search.",
     cache: { category: "post", ttlSeconds: 600 },
     group: "Jobs",
+    tags: ["jobs"],
+    responseShape: { root: "data.job" },
   },
   {
     platform: "jobs",
@@ -12317,6 +13547,7 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns known job titles matching a query in a country, each with a listing count. Use a returned title as query on GET /v1/jobs/salary.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Jobs",
+    tags: ["jobs"],
   },
   {
     platform: "jobs",
@@ -12337,6 +13568,7 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns min, max, mean, and median pay for a job title in a country, broken out hourly, daily, weekly, monthly, and yearly, plus the local currency. Use GET /v1/jobs/salary/titles first when the title is uncertain.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Jobs",
+    tags: ["jobs"],
   },
   // --- us_congress_trades (19 endpoints) ---
   {
@@ -12370,6 +13602,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Trades",
+    tags: ["us_congress_trades"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "us_congress_trades",
@@ -12392,6 +13626,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Trades",
+    tags: ["us_congress_trades"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "us_congress_trades",
@@ -12414,6 +13650,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Trades",
+    tags: ["us_congress_trades"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "us_congress_trades",
@@ -12438,6 +13676,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Members",
+    tags: ["us_congress_trades"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "us_congress_trades",
@@ -12457,6 +13697,7 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns aggregated STOCK Act stats for one politician by last name: party, state, trade count, buy vs sell, disclosed value, average reporting gap, top tickers, and top sectors. Pass the same handle to GET /v1/us_congress_trades/politician/trades for the filings themselves.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Members",
+    tags: ["us_congress_trades"],
   },
   {
     platform: "us_congress_trades",
@@ -12483,6 +13724,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Members",
+    tags: ["us_congress_trades"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "us_congress_trades",
@@ -12502,6 +13745,7 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns aggregated STOCK Act stats for one stock: trade count, buy vs sell, disclosed value, unique politicians, and the members who trade it most. Accepts a bare ticker (AAPL) or AAPL:US. Pass the same keyword to GET /v1/us_congress_trades/ticker/trades for the filings.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Tickers",
+    tags: ["us_congress_trades"],
   },
   {
     platform: "us_congress_trades",
@@ -12531,6 +13775,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Tickers",
+    tags: ["us_congress_trades"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "us_congress_trades",
@@ -12555,6 +13801,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "search", ttlSeconds: 120 },
     group: "Members",
+    tags: ["us_congress_trades"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "us_congress_trades",
@@ -12572,6 +13820,7 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns high-level STOCK Act coverage: total trades, total politicians, earliest and latest trade dates, and last updated time.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stats",
+    tags: ["us_congress_trades"],
   },
   {
     platform: "us_congress_trades",
@@ -12591,6 +13840,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stats",
+    tags: ["us_congress_trades"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "us_congress_trades",
@@ -12610,6 +13861,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stats",
+    tags: ["us_congress_trades"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "us_congress_trades",
@@ -12631,6 +13884,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stats",
+    tags: ["us_congress_trades"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "us_congress_trades",
@@ -12652,6 +13907,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stats",
+    tags: ["us_congress_trades"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "us_congress_trades",
@@ -12674,6 +13931,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stats",
+    tags: ["us_congress_trades"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "us_congress_trades",
@@ -12696,6 +13955,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stats",
+    tags: ["us_congress_trades"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "us_congress_trades",
@@ -12718,6 +13979,8 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stats",
+    tags: ["us_congress_trades"],
+    responseShape: { root: "data.items[]" },
   },
   {
     platform: "us_congress_trades",
@@ -12739,6 +14002,7 @@ export const ENDPOINTS: Endpoint[] = [
       "Returns buy vs sell counts, disclosed value, and the ratio, with optional party and sector filters plus a by-party and by-sector breakdown.",
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stats",
+    tags: ["us_congress_trades"],
   },
   {
     platform: "us_congress_trades",
@@ -12762,5 +14026,7 @@ export const ENDPOINTS: Endpoint[] = [
     emptyOn404: true,
     cache: { category: "analytics", ttlSeconds: 1800 },
     group: "Stats",
+    tags: ["us_congress_trades"],
+    responseShape: { root: "data.items[]" },
   },
 ];

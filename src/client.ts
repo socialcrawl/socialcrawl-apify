@@ -1,4 +1,4 @@
-import { TIMEOUT_MS, BILLING_URL } from "./constants.js";
+import { ACTOR_NAME, ACTOR_VERSION, TIMEOUT_MS, BILLING_URL } from "./constants.js";
 import type { HttpMethod, SocialCrawlResponse } from "./types.js";
 
 export interface ClientConfig {
@@ -85,7 +85,12 @@ export async function callApi(
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
-  const headers: Record<string, string> = { "x-api-key": config.apiKey };
+  const headers: Record<string, string> = {
+    "x-api-key": config.apiKey,
+    // Identifies Actor traffic to the API, so a support question about a
+    // request can be tied to the Actor build that made it.
+    "User-Agent": `${ACTOR_NAME}/${ACTOR_VERSION}`,
+  };
   if (options.idempotencyKey) {
     headers["Idempotency-Key"] = options.idempotencyKey;
   }
@@ -123,13 +128,16 @@ export async function callApi(
     }
 
     if (!response.ok) {
+      // `?.` so a fetch-like response without headers still reports the API
+      // error rather than throwing into the network-error branch below.
+      const headerRequestId = response.headers?.get("x-request-id");
       return {
         ok: false,
         status: response.status,
         path,
         raw,
         json,
-        errorMessage: formatHttpError(response.status, json, options),
+        errorMessage: formatHttpError(response.status, json, options, headerRequestId),
       };
     }
 
@@ -222,44 +230,111 @@ function omit(
 }
 
 interface ParsedErrorEnvelope {
-  error?: { type?: string; message?: string; doc_url?: string };
+  error?: {
+    type?: string;
+    message?: string;
+    doc_url?: string;
+    details?: { reason?: unknown };
+  };
   credits_remaining?: number;
+  request_id?: unknown;
 }
 
+/**
+ * Maps a non-2xx response to the run's error message. The server's own
+ * `error.message` is always passed through (a fixed lead-in only names the
+ * category), and `details.reason` plus the `request_id` (from the body, else the
+ * `X-Request-Id` header) are appended in one trailing clause: the request id is
+ * what support needs to find the call, and dropping it left customers with
+ * nothing to quote.
+ */
 export function formatHttpError(
   status: number,
   json: SocialCrawlResponse | null,
   options: ApiCallOptions,
+  headerRequestId?: string | null,
 ): string {
-  const parsed = json as ParsedErrorEnvelope | null;
+  const parsed = json && typeof json === "object" ? (json as ParsedErrorEnvelope) : null;
+  const requestId = nonEmptyString(parsed?.request_id) ?? nonEmptyString(headerRequestId);
+  const reason = nonEmptyString(parsed?.error?.details?.reason);
+
+  const context: string[] = [];
+  if (reason) context.push(`reason: ${reason}`);
+  if (requestId) context.push(`request_id: ${requestId}`);
+  const main = describeHttpError(status, parsed, options);
+  return context.length > 0 ? `${main} (${context.join(", ")})` : main;
+}
+
+function nonEmptyString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() !== "" ? value.trim() : undefined;
+}
+
+/** Ends a server message with punctuation so a following sentence reads cleanly. */
+function sentence(text: string): string {
+  return /[.!?]$/.test(text) ? text : `${text}.`;
+}
+
+function describeHttpError(
+  status: number,
+  parsed: ParsedErrorEnvelope | null,
+  options: ApiCallOptions,
+): string {
   const errorType = parsed?.error?.type ?? "UNKNOWN_ERROR";
-  const errorMessage = parsed?.error?.message ?? `HTTP ${status}`;
+  const serverMessage = nonEmptyString(parsed?.error?.message);
+  const errorMessage = serverMessage ?? `HTTP ${status}`;
   const docUrl = parsed?.error?.doc_url;
+  // The server's message as a leading sentence, or nothing when it sent none.
+  const said = serverMessage ? `${sentence(serverMessage)} ` : "";
 
   switch (status) {
     case 401:
-      return "Invalid API key. Double-check the `apiKey` input — it should look like `sc_…`. Get a free key at socialcrawl.dev.";
+      return `Invalid API key. ${said}Double-check the \`apiKey\` input: it should look like \`sc_…\`. Get a free key at socialcrawl.dev.`;
     case 402:
-      return `Insufficient credits (${parsed?.credits_remaining ?? 0} remaining). Top up at ${BILLING_URL}.`;
+      // A spent per-key cap needs the cap raised; topping up would not clear it.
+      if (errorType === "KEY_BUDGET_EXCEEDED") {
+        return serverMessage ?? "This API key has spent its per-key credit limit. Raise the key's limit in the dashboard; topping up will not clear it.";
+      }
+      return `Insufficient credits (${parsed?.credits_remaining ?? 0} remaining). ${said}Top up at ${BILLING_URL}.`;
     case 400:
       return `Bad request: ${errorMessage}`;
     case 404:
       if (errorType === "RESOURCE_NOT_FOUND") {
-        return `Resource not found upstream — the requested ${options.platform} resource doesn't exist. Credits were refunded automatically.`;
+        return serverMessage
+          ? `Resource not found (${options.platform}). ${serverMessage}`
+          : `Resource not found upstream: the requested ${options.platform} resource doesn't exist. Credits were refunded automatically.`;
       }
-      return `Endpoint /v1/${options.platform}/${options.resource} not found. Use action "List endpoints" to see what's available for ${options.platform}.`;
+      return `Endpoint /v1/${options.platform}/${options.resource} not found. ${said}Use action "List endpoints" to see what's available for ${options.platform}.`;
     case 405:
-      return `Method not allowed for /v1/${options.platform}/${options.resource}. Set the "method" input to the verb this resource supports (see action "List endpoints").`;
+      return `Method not allowed for /v1/${options.platform}/${options.resource}. ${said}Set the "method" input to the verb this resource supports (see action "List endpoints").`;
+    // 409 and 422 are the idempotency codes, but the cohort family reuses them
+    // for its own conflicts; only blame the key when the envelope says so.
     case 409:
-      return "Idempotency-Key conflict — that key was already used by another account. Generate a fresh UUIDv4.";
+      if (errorType === "IDEMPOTENCY_KEY_CONFLICT" || errorType === "UNKNOWN_ERROR") {
+        return serverMessage
+          ? `Idempotency-Key conflict. ${said}Generate a fresh UUIDv4.`
+          : "Idempotency-Key conflict: that key was already used by another account. Generate a fresh UUIDv4.";
+      }
+      return `${errorType}: ${errorMessage}`;
     case 422:
-      return "Idempotency-Key payload mismatch — you reused a key with different parameters. Use a new key, or repeat the request exactly.";
+      if (errorType === "IDEMPOTENCY_KEY_PAYLOAD_MISMATCH" || errorType === "UNKNOWN_ERROR") {
+        return serverMessage
+          ? `Idempotency-Key payload mismatch. ${said}Use a new key, or repeat the request exactly.`
+          : "Idempotency-Key payload mismatch: you reused a key with different parameters. Use a new key, or repeat the request exactly.";
+      }
+      return `${errorType}: ${errorMessage}`;
+    // 429 covers two limits (600 requests/minute and 50 in flight), and 502/503
+    // carry a platform-specific cause and retry hint. Only the server knows
+    // which, so its message leads and the fixed line is the no-body fallback.
     case 429:
-      return "Too many concurrent requests on this API key (50 max). Wait a moment and retry.";
+      return serverMessage ?? "Too many concurrent requests on this API key (50 max). Wait a moment and retry.";
     case 502:
-      return "Upstream error fetching data. Credits were auto-refunded — retry shortly.";
+      return serverMessage
+        ? `Upstream error. ${serverMessage}`
+        : "Upstream error fetching data. Credits were auto-refunded; retry shortly.";
     case 503:
-      return `Platform ${options.platform} is temporarily unavailable. Credits were auto-refunded — retry in ~30s.`;
+      return serverMessage
+        ? `Service unavailable. ${serverMessage}`
+        : `Platform ${options.platform} is temporarily unavailable. Credits were auto-refunded; retry in ~30s.`;
     default: {
       const docHint = docUrl ? ` See ${docUrl}` : "";
       return `Error ${status}: ${errorType} — ${errorMessage}${docHint}`;

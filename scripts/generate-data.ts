@@ -64,6 +64,50 @@ interface DumpPagination {
   limitMax?: number;
 }
 
+/**
+ * Where the rows actually live in the response envelope, derived by the backend
+ * from its archetype tables. `data.items[]` for a list, `data.<key>` for a
+ * singular object. Absent for passthrough archetypes, where no canonical
+ * wrapper exists and a stated path would be a lie.
+ */
+interface DumpResponseShape {
+  root: string;
+  itemKey?: string;
+}
+
+/**
+ * One `include=<token>` row join, as the registry now declares it (2026-09-14).
+ * Before this the Actor inferred joins from an enum vocabulary plus a price
+ * gap, which found one endpoint that is not a join and could only ever quote
+ * the whole band as "the join" — wrong on the four endpoints that meter for
+ * other reasons too. Everything is declared here, so nothing is inferred.
+ */
+interface DumpHydration {
+  /** Always `include` today. */
+  param: string;
+  token: string;
+  /** The public endpoint whose read fills the rows. */
+  sibling: string;
+  siblingMethod?: string;
+  /** The exact canonical leaves this token fills in. */
+  fills: string[];
+  creditsPerItem: number;
+  /** Most rows this token will ever join on one call. */
+  maxItems: number;
+  /** Rows joined when the caller sends no row limit, when it differs. */
+  defaultRowLimit?: number;
+  /** The param that lowers `maxItems` for this call (today always `limit`). */
+  rowLimitParam?: string;
+  /** Batched joins bill a flat cap per call rather than per row. */
+  batch?: { size: number; creditCap: number };
+  /** Leaves the join replaces outright rather than fills when empty. */
+  replaceApproximate?: string[];
+  /** Rows already in the sibling's cache are free. */
+  cacheSibling?: boolean;
+  /** Warning codes the response carries when the join could not complete. */
+  warnings?: { unavailable?: string; partial?: string };
+}
+
 interface DumpEndpoint {
   platform: string;
   resource: string;
@@ -81,6 +125,8 @@ interface DumpEndpoint {
   execution?: string;
   streaming?: string;
   pagination?: DumpPagination;
+  /** Registry's own explicit paginatable flag, where it declares one. */
+  paginatable?: boolean;
   singlePage?: string;
   collectUntilN?: string;
   emptyOn404?: true;
@@ -89,6 +135,13 @@ interface DumpEndpoint {
   group?: string;
   actionLabel?: string;
   contractDetails?: string[];
+  /** Searchable topic labels from `docs.tags` — every endpoint carries at least one. */
+  tags?: string[];
+  responseShape?: DumpResponseShape;
+  /** Per-leaf documentation for endpoints whose response is not self-describing. */
+  responseFields?: Record<string, string>;
+  /** One entry per `include` token that joins a second read onto the result. */
+  hydration?: DumpHydration[];
 }
 
 interface Dump {
@@ -341,6 +394,54 @@ function renderPagination(p: DumpPagination): string {
   return `{ ${parts.join(", ")} }`;
 }
 
+function renderResponseShape(s: DumpResponseShape): string {
+  const parts = [`root: ${str(s.root)}`];
+  if (s.itemKey) parts.push(`itemKey: ${str(s.itemKey)}`);
+  return `{ ${parts.join(", ")} }`;
+}
+
+function renderResponseFields(f: Record<string, string>): string {
+  const entries = Object.entries(f).map(
+    ([name, doc]) => `      ${str(name)}: ${str(doc)},`,
+  );
+  return ["{", ...entries, "    }"].join("\n");
+}
+
+function renderHydration(entries: DumpHydration[]): string {
+  const blocks = entries.map((h) => {
+    const parts = [
+      `param: ${str(h.param)}`,
+      `token: ${str(h.token)}`,
+      `sibling: ${str(h.sibling)}`,
+    ];
+    if (h.siblingMethod) parts.push(`siblingMethod: ${str(h.siblingMethod)}`);
+    parts.push(`fills: [${h.fills.map(str).join(", ")}]`);
+    parts.push(`creditsPerItem: ${h.creditsPerItem}`);
+    parts.push(`maxItems: ${h.maxItems}`);
+    if (h.defaultRowLimit !== undefined) {
+      parts.push(`defaultRowLimit: ${h.defaultRowLimit}`);
+    }
+    if (h.rowLimitParam) parts.push(`rowLimitParam: ${str(h.rowLimitParam)}`);
+    if (h.batch) {
+      parts.push(`batch: { size: ${h.batch.size}, creditCap: ${h.batch.creditCap} }`);
+    }
+    if (h.replaceApproximate?.length) {
+      parts.push(
+        `replaceApproximate: [${h.replaceApproximate.map(str).join(", ")}]`,
+      );
+    }
+    if (h.cacheSibling) parts.push(`cacheSibling: true`);
+    if (h.warnings) {
+      const w: string[] = [];
+      if (h.warnings.unavailable) w.push(`unavailable: ${str(h.warnings.unavailable)}`);
+      if (h.warnings.partial) w.push(`partial: ${str(h.warnings.partial)}`);
+      if (w.length > 0) parts.push(`warnings: { ${w.join(", ")} }`);
+    }
+    return `      { ${parts.join(", ")} },`;
+  });
+  return ["[", ...blocks, "    ]"].join("\n");
+}
+
 function renderCsvConstraints(
   c: Record<string, { max?: number; enumValues?: string[] }>,
 ): string {
@@ -395,6 +496,9 @@ function renderEndpoint(e: DumpEndpoint): string {
   if (e.pagination) {
     lines.push(`    pagination: ${renderPagination(e.pagination)},`);
   }
+  if (e.paginatable !== undefined) {
+    lines.push(`    paginatable: ${e.paginatable},`);
+  }
   if (e.singlePage) lines.push(`    singlePage: ${str(e.singlePage)},`);
   if (e.collectUntilN) lines.push(`    collectUntilN: ${str(e.collectUntilN)},`);
   if (e.emptyOn404) lines.push(`    emptyOn404: true,`);
@@ -408,6 +512,18 @@ function renderEndpoint(e: DumpEndpoint): string {
     lines.push(
       `    contractDetails: [${e.contractDetails.map(str).join(", ")}],`,
     );
+  }
+  if (e.tags?.length) {
+    lines.push(`    tags: [${e.tags.map(str).join(", ")}],`);
+  }
+  if (e.responseShape) {
+    lines.push(`    responseShape: ${renderResponseShape(e.responseShape)},`);
+  }
+  if (e.responseFields && Object.keys(e.responseFields).length > 0) {
+    lines.push(`    responseFields: ${renderResponseFields(e.responseFields)},`);
+  }
+  if (e.hydration?.length) {
+    lines.push(`    hydration: ${renderHydration(e.hydration)},`);
   }
   lines.push("  },");
   return lines.join("\n");
@@ -450,6 +566,27 @@ const ladderCount = dump.endpoints.filter(
 ).length;
 const freeCount = dump.endpoints.filter((e) => e.pricing.cost === 0).length;
 const paginatableCount = dump.endpoints.filter((e) => e.pagination).length;
+// Row hydration (`include=…`): a second lookup joined onto every row of the
+// same call, billed per row filled against a ceiling. It is the newest and
+// least obvious way a call's price moves, so it gets its own count.
+// The same `include` param name carries two unrelated meanings, and counting
+// them as one thing misprices both: on a composite it is a free-form CSV that
+// picks response blocks, on these it is a billed second read. Since 2026-09-14
+// the registry says which is which outright, in `hydration` — so this is a
+// count of a declaration, not of a heuristic. (The heuristic it replaced
+// classed `reddit/omni-search` as a join, which it is not.)
+const HYDRATION_PARAMS = new Set(["include", "include_details"]);
+const includeParamsOf = (e: DumpEndpoint) =>
+  (e.optionalParams ?? []).filter((p) => HYDRATION_PARAMS.has(p.name));
+const hydratableCount = dump.endpoints.filter(
+  (e) => includeParamsOf(e).length > 0,
+).length;
+const rowJoinCount = dump.endpoints.filter((e) => e.hydration?.length).length;
+const joinTokenCount = dump.endpoints.reduce(
+  (n, e) => n + (e.hydration?.length ?? 0),
+  0,
+);
+const withResponseShape = dump.endpoints.filter((e) => e.responseShape).length;
 
 const statsTs = `/**
  * Registry counts baked in at generation time. Generated by
@@ -477,6 +614,24 @@ export const REGISTRY_STATS = {
   freeEndpoints: ${freeCount},
   /** Endpoints that accept the universal \`cursor\` and can be auto-paginated. */
   paginatableEndpoints: ${paginatableCount},
+  /**
+   * Endpoints whose \`include=…\` token runs a BILLED second read against what
+   * they returned — one call fills another endpoint's fields onto every row,
+   * charged per row filled against a ceiling, with unfilled and cached rows
+   * refunded. Straight from the registry's \`hydration\` declaration. This is
+   * the number to quote when talking about cost.
+   */
+  rowJoinEndpoints: ${rowJoinCount},
+  /** Individual join tokens across those endpoints (YouTube lists offer two). */
+  rowJoinTokens: ${joinTokenCount},
+  /**
+   * Every endpoint accepting an \`include\` param at all, which also counts the
+   * composites and dossiers where it merely picks response blocks. Always at
+   * least \`rowJoinEndpoints\`; never a substitute for it in pricing copy.
+   */
+  hydratableEndpoints: ${hydratableCount},
+  /** Endpoints declaring exactly where their rows sit in the envelope. */
+  endpointsWithResponseShape: ${withResponseShape},
 } as const;
 
 /** The 1/5/10 credit ladder, straight from the backend constants. */
@@ -497,3 +652,9 @@ console.log(
   `  pricing: ${ladderCount} ladder · ${flatCount} flat · ${meteredCount} metered · ${freeCount} free`,
 );
 console.log(`  pagination: ${paginatableCount} endpoints accept a cursor`);
+console.log(
+  `  row joins: ${rowJoinCount} endpoints / ${joinTokenCount} declared \`include=…\` join tokens (${hydratableCount} endpoints take an \`include\` param at all)`,
+);
+console.log(
+  `  response shape: ${withResponseShape} endpoints declare where their rows live`,
+);

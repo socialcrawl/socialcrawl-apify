@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { stringifyParams, cleanParams, rowsFromEnvelope } from "./transform.js";
+import { findEndpoint } from "./catalog.js";
 import type { SocialCrawlSuccessResponse } from "./types.js";
 
 function envelope(data: unknown): SocialCrawlSuccessResponse {
@@ -136,5 +137,95 @@ describe("rowsFromEnvelope", () => {
       _sc_credits_used: null,
       _sc_cached: null,
     });
+  });
+});
+
+describe("rows are read from the path the registry declares", () => {
+  const profile = findEndpoint("tiktok", "profile")!;
+  const pinSearch = findEndpoint("pinterest", "search")!;
+
+  it("takes a singular object from its declared key, not from a guess", () => {
+    // `data.author` is where a profile lives. The old structural guess wrapped
+    // the WHOLE data object as one row, dragging sibling keys in with it.
+    expect(profile.responseShape?.root).toBe("data.author");
+    const rows = rowsFromEnvelope(
+      "tiktok",
+      "profile",
+      envelope({ author: { handle: "charli", followers: 10 }, warnings: ["x"] }),
+      "",
+      undefined,
+      { endpoint: profile },
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ handle: "charli", followers: 10 });
+    expect(rows[0]).not.toHaveProperty("warnings");
+  });
+
+  it("labels each row with the canonical object kind", () => {
+    const rows = rowsFromEnvelope(
+      "pinterest",
+      "search",
+      envelope({ items: [{ id: "a" }, { id: "b" }] }),
+      "",
+      undefined,
+      { endpoint: pinSearch },
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!._sc_item_kind).toBe(pinSearch.responseShape?.itemKey);
+  });
+
+  it("falls back to the structural guess when the declared path is absent", () => {
+    // A snapshot that has drifted from the live API must never cost someone the
+    // rows they just paid for.
+    const rows = rowsFromEnvelope(
+      "tiktok",
+      "profile",
+      envelope({ items: [{ id: "a" }] }),
+      "",
+      undefined,
+      { endpoint: profile },
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: "a" });
+  });
+
+  it("still works for an endpoint that declares no shape", () => {
+    const rows = rowsFromEnvelope("prism", "voice", envelope({ items: [{ id: "a" }] }), "");
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).not.toHaveProperty("_sc_item_kind");
+  });
+
+  it("lifts the join receipt onto every row", () => {
+    // `data.hydration` is the receipt for the extra credits a join spends;
+    // leaving it in the envelope alone hides it from anyone reading the dataset.
+    const rows = rowsFromEnvelope(
+      "pinterest",
+      "search",
+      envelope({
+        items: [{ id: "a" }, { id: "b" }],
+        hydration: { rows: 18, filled: 18, credits_held: 18, credits_kept: 17, ms: 5200 },
+      }),
+      "",
+      undefined,
+      { endpoint: pinSearch },
+    );
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row._sc_hydration_filled).toBe(18);
+      expect(row._sc_hydration_credits_kept).toBe(17);
+    }
+  });
+
+  it("keeps a nested hydration value out of the rows", () => {
+    const rows = rowsFromEnvelope(
+      "pinterest",
+      "search",
+      envelope({ items: [{ id: "a" }], hydration: { filled: 1, per_row: [{ id: "a" }] } }),
+      "",
+      undefined,
+      { endpoint: pinSearch },
+    );
+    expect(rows[0]!._sc_hydration_filled).toBe(1);
+    expect(rows[0]).not.toHaveProperty("_sc_hydration_per_row");
   });
 });

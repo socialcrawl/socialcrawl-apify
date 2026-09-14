@@ -8,7 +8,7 @@ export const DEFAULT_BASE_URL = "https://www.socialcrawl.dev";
 export const TIMEOUT_MS = 120_000;
 
 export const ACTOR_NAME = "socialcrawl-apify";
-export const ACTOR_VERSION = "1.2.0";
+export const ACTOR_VERSION = "1.5.0";
 
 export const SIGNUP_URL = "https://www.socialcrawl.dev";
 export const DOCS_URL = "https://www.socialcrawl.dev/docs";

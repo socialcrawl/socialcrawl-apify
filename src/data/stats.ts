@@ -10,20 +10,38 @@
  */
 export const REGISTRY_STATS = {
   totalPlatforms: 65,
-  totalEndpoints: 571,
+  totalEndpoints: 575,
   socialPlatforms: 31,
   universalSearchPlatforms: 14,
   universalSearchSources: 17,
   /** Endpoints charging the plain 1/5/10 tier rate. */
-  ladderPriced: 470,
+  ladderPriced: 443,
   /** Endpoints with a flat per-endpoint override off the ladder. */
-  flatPriced: 64,
+  flatPriced: 61,
   /** Endpoints whose charge is computed per request from the params sent. */
-  meteredPriced: 37,
+  meteredPriced: 71,
   /** Endpoints that never charge a credit. */
   freeEndpoints: 18,
   /** Endpoints that accept the universal `cursor` and can be auto-paginated. */
-  paginatableEndpoints: 195,
+  paginatableEndpoints: 197,
+  /**
+   * Endpoints whose `include=…` token runs a BILLED second read against what
+   * they returned — one call fills another endpoint's fields onto every row,
+   * charged per row filled against a ceiling, with unfilled and cached rows
+   * refunded. Straight from the registry's `hydration` declaration. This is
+   * the number to quote when talking about cost.
+   */
+  rowJoinEndpoints: 28,
+  /** Individual join tokens across those endpoints (YouTube lists offer two). */
+  rowJoinTokens: 33,
+  /**
+   * Every endpoint accepting an `include` param at all, which also counts the
+   * composites and dossiers where it merely picks response blocks. Always at
+   * least `rowJoinEndpoints`; never a substitute for it in pricing copy.
+   */
+  hydratableEndpoints: 60,
+  /** Endpoints declaring exactly where their rows sit in the envelope. */
+  endpointsWithResponseShape: 421,
 } as const;
 
 /** The 1/5/10 credit ladder, straight from the backend constants. */

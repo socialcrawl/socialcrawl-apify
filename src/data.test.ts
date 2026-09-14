@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { ACTOR_VERSION } from "./constants.js";
 import { ALL_ENDPOINTS, ALL_PLATFORMS, isPaginatable, publicPath } from "./catalog.js";
 import { COHORT_ENDPOINTS, COHORT_PLATFORM } from "./data/cohorts.js";
 import { ENDPOINTS } from "./data/endpoints.js";
@@ -73,6 +74,40 @@ describe("generated data is internally consistent", () => {
           expect(required.has(name), `${e.platform}/${e.resource} :: ${name}`).toBe(false);
         }
       }
+    }
+  });
+
+  it("carries the registry's topic tags on every endpoint", () => {
+    // Tags are what make cross-cutting searches work ("ads" reaching
+    // tiktok-ads, linkedin-ads and google-ads at once). A generator that
+    // silently stopped emitting them would degrade search with no other signal.
+    for (const e of ENDPOINTS) {
+      expect(e.tags?.length, `${e.platform}/${e.resource}`).toBeGreaterThan(0);
+    }
+  });
+
+  it("declares a response shape that names a real `data` key", () => {
+    const shaped = ENDPOINTS.filter((e) => e.responseShape);
+    expect(shaped).toHaveLength(REGISTRY_STATS.endpointsWithResponseShape);
+    for (const e of shaped) {
+      // Every declared root is `data.<key>` or `data.<key>[]` — the two forms
+      // transform.ts knows how to read. Anything else would silently fall back
+      // to the guess it is meant to replace.
+      expect(e.responseShape!.root, `${e.platform}/${e.resource}`).toMatch(
+        /^data\.[a-z_]+(\[\])?$/,
+      );
+    }
+  });
+
+  it("only names an item kind on a list shape", () => {
+    // A singular shape IS its object, so an `itemKey` there would be a second,
+    // conflicting answer to "what is this row?". Not every list carries one:
+    // the mixed archetypes (SearchResult, MediaList) have no single kind, and
+    // inventing one for them would be worse than leaving `_sc_item_kind` off.
+    for (const e of ENDPOINTS) {
+      const shape = e.responseShape;
+      if (!shape?.itemKey) continue;
+      expect(shape.root, `${e.platform}/${e.resource}`).toMatch(/\[\]$/);
     }
   });
 
@@ -274,13 +309,21 @@ describe("Actor copy has not drifted from the generated data", () => {
   });
 
   it("keeps the README platform table in step with the catalog", () => {
+    // Checking only that the NAME appears let the per-platform counts rot: the
+    // table said TikTok 33 for two waves after it was 36. Assert the pair.
     for (const p of PLATFORMS) {
       expect(readme, p.name).toContain(p.name);
+      expect(readme, `${p.name} endpoint count`).toMatch(
+        new RegExp(`\\|\\s*${p.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\|\\s*${p.endpointCount}\\s*\\|`),
+      );
     }
   });
 
   it("keeps the Actor version in step across package.json, actor.json and constants", () => {
     expect(actorJson.version).toBe(pkg.version.split(".").slice(0, 2).join("."));
+    // ACTOR_VERSION rides on every request's User-Agent, so a stale one makes
+    // the API's own traffic logs lie about which build made a call.
+    expect(ACTOR_VERSION).toBe(pkg.version);
   });
 
   it("gives listEndpoints / listPricing a way to escape the platform dropdown", () => {
@@ -294,19 +337,14 @@ describe("Actor copy has not drifted from the generated data", () => {
   });
 
   it("documents every action the Actor implements", () => {
-    expect(schema.properties.action.enum).toEqual([
-      "request",
-      "quickstart",
-      "endpointGuide",
-      "agentContext",
-      "checkForUpdates",
-      "listPlatforms",
-      "listEndpoints",
-      "searchEndpoints",
-      "listPricing",
-      "checkBalance",
-      "creditTransactions",
-    ]);
+    // Read the union straight out of main.ts rather than restating it: a
+    // hand-copied list here means a new action can ship with no way to pick it
+    // from the Apify form, and the test still passes.
+    const union = readText("src/main.ts").match(/^type Action =\r?\n([\s\S]*?);\r?$/m);
+    expect(union, "main.ts must declare `type Action`").not.toBeNull();
+    const implemented = [...union![1]!.matchAll(/"([A-Za-z]+)"/g)].map((m) => m[1]);
+
+    expect(schema.properties.action.enum).toEqual(implemented);
     expect(schema.properties.action.enumTitles).toHaveLength(
       schema.properties.action.enum.length,
     );

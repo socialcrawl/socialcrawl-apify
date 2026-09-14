@@ -240,3 +240,21 @@ describe("prepareMonitorBody", () => {
     expect(prepareMonitorBody({ alert_rules: rules }).alert_rules).toBe(rules);
   });
 });
+
+describe("searchEndpoints uses the registry's topic tags", () => {
+  it("reaches every ad library from the word people actually search", () => {
+    // The tags are `tiktok-ads` / `linkedin-ads` / `facebook-ads` / `google-ads`,
+    // so a segment match is what makes the bare term "ads" work. Without it the
+    // top hits were Threads endpoints, which merely contain the letters.
+    const top = searchEndpoints("ads", 8).map((e) => `${e.platform}/${e.resource}`);
+    expect(top.some((p) => p.includes("adlibrary") || p.includes("/ads"))).toBe(true);
+    expect(top.slice(0, 5).every((p) => !p.startsWith("threads/"))).toBe(true);
+  });
+
+  it("still ranks an exact path above a tag match", () => {
+    expect(searchEndpoints("tiktok/profile", 1)[0]).toMatchObject({
+      platform: "tiktok",
+      resource: "profile",
+    });
+  });
+});

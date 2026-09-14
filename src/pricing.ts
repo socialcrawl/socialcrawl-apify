@@ -1,6 +1,14 @@
 import { publicPath } from "./catalog.js";
 import { BILLING_URL, DOCS_URL, SIGNUP_URL } from "./constants.js";
 import { CREDIT_LADDER, REGISTRY_STATS } from "./data/stats.js";
+import {
+  activeJoins,
+  describeJoins,
+  includeJoins,
+  joinCostImpact,
+  tokenCeiling,
+  tokenCeilingForCall,
+} from "./hydration.js";
 import type { Endpoint } from "./types.js";
 
 /**
@@ -43,6 +51,47 @@ export function costRange(e: Endpoint): { min: number; max: number } {
 }
 
 /**
+ * The band for a CONCRETE call, narrowed by what its params ask for.
+ *
+ * `costRange` answers "what can this endpoint cost?" — which, on the 28
+ * endpoints carrying a row join, spans the plain read and the fully joined
+ * page. A Pinterest search is 1-26 credits as an endpoint but exactly 1 credit
+ * as a call, unless you sent `include=engagement`. Quoting 26 to someone who
+ * did not ask for the join is as wrong as quoting 1 to someone who did, so the
+ * dry run and the pre-flight line price the params in hand.
+ *
+ * The rule is simply: take the endpoint's ceiling and subtract every declared
+ * join this call did NOT turn on. That works on the endpoints whose band is
+ * entirely the join (Pinterest: 26 - 25 = 1), on the ones offering two tokens
+ * (a YouTube list with only `include=engagement`: 11 - 5 = 6), and — unlike the
+ * arithmetic this replaced — on the four that also meter for other reasons.
+ * `threads/user/posts` is 1-165 because a wide `limit` reads a second source;
+ * its join is worth 15 of that, so a plain call is correctly still 1-150 rather
+ * than being flattened to its floor.
+ */
+export function costRangeForCall(
+  e: Endpoint,
+  params: Record<string, unknown>,
+): { min: number; max: number } {
+  const full = costRange(e);
+  const declared = e.hydration ?? [];
+  if (declared.length === 0) return full;
+
+  const active = activeJoins(e, params);
+  const unused = declared
+    .filter((h) => !active.includes(h))
+    .reduce((n, h) => n + tokenCeiling(h), 0);
+  // An active join can also cost less than its headline (a row limit, or a
+  // default narrower than the cap), which comes off the ceiling too.
+  const activeShortfall = active.reduce(
+    (n, h) => n + (tokenCeiling(h) - tokenCeilingForCall(h, params)),
+    0,
+  );
+
+  return { min: full.min, max: Math.max(full.min, full.max - unused - activeShortfall) };
+}
+
+/**
  * Credits deducted the moment the request is accepted. Fixed-price endpoints
  * charge their cost; metered endpoints hold the ceiling and refund the
  * difference once the work settles. `null` where the hold is computed per
@@ -82,6 +131,17 @@ export function pricingNote(e: Endpoint): string {
   const model = effectiveModel(e);
   const authored = e.pricing.description;
 
+  // On a row-join endpoint the two ends of the band are two different calls,
+  // not a range of outcomes for one call, so say which is which up front.
+  const rowJoins = includeJoins(e).filter((j) => j.kind === "row-join");
+  const joinSentence =
+    rowJoins.length > 0
+      ? ` A plain call is ${e.pricing.cost} ${plural(e.pricing.cost)}; the rest of the band is the \`${rowJoins[0]!.param}\` join (${rowJoins
+          .flatMap((j) => j.tokens ?? [])
+          .map((t) => `\`${t}\``)
+          .join(", ")}), which bills for what it actually filled and refunds the rest.`
+      : "";
+
   if (model === "metered") {
     const { min, max } = costRange(e);
     const band = min === max ? `${min} ${plural(min)}` : `${min}-${max} credits`;
@@ -91,7 +151,8 @@ export function pricingNote(e: Endpoint): string {
     const headline = e.pricing.holdIsComputed
       ? `Metered — ${band} per call; the exact ceiling is computed from the request, held up front, and refunded down to the work actually done`
       : `Metered — ${band} per call, ${max} held up front and refunded down to the work actually done`;
-    return authored ? `${headline}. ${authored}` : `${headline}.`;
+    const body = authored ? `${headline}. ${authored}` : `${headline}.`;
+    return `${body}${joinSentence}`;
   }
 
   if (model === "free") {
@@ -147,12 +208,24 @@ export interface EndpointPricing {
   cache_note: string;
   /** Whether the Actor can follow `next_cursor` — each extra page bills again. */
   paginatable: boolean;
+  /**
+   * True when an `include=…` token joins a second source onto the result and
+   * bills for what it filled. On these, `credit_cost` is the PLAIN price and
+   * `max_credits` is the joined ceiling — the gap between them is the join.
+   */
+  has_row_join: boolean;
+  /** Extra credits a join can add over the plain read. 0 when there is none. */
+  row_join_extra_credits_max: number;
+  /** Every `include` option this endpoint declares, or null. */
+  row_joins: Record<string, unknown>[] | null;
 }
 
 /** Full pricing payload for one endpoint. */
 export function pricingFor(e: Endpoint): EndpointPricing {
   const model = effectiveModel(e);
   const { min, max } = costRange(e);
+  const joins = includeJoins(e);
+  const rowJoins = joins.filter((j) => j.kind === "row-join");
   return {
     platform: e.platform,
     resource: e.resource,
@@ -176,6 +249,12 @@ export function pricingFor(e: Endpoint): EndpointPricing {
     cache_ttl_seconds: e.cache.ttlSeconds,
     cache_note: cacheNote(e),
     paginatable: Boolean(e.pagination) && !e.singlePage,
+    has_row_join: rowJoins.length > 0,
+    row_join_extra_credits_max: rowJoins.reduce(
+      (worst, j) => Math.max(worst, j.extraCreditsMax),
+      0,
+    ),
+    row_joins: describeJoins(e),
   };
 }
 
@@ -187,18 +266,24 @@ export function pricingFor(e: Endpoint): EndpointPricing {
 export function estimateRunCost(
   e: Endpoint,
   maxPages = 1,
+  params: Record<string, unknown> = {},
 ): { min: number; max: number; text: string } {
   const pages = Math.max(1, maxPages);
-  const { min, max } = costRange(e);
+  const { min, max } = costRangeForCall(e, params);
   const totalMin = min * pages;
   const totalMax = max * pages;
+
+  const impact = joinCostImpact(e, params);
+  const joinSuffix = impact.requested
+    ? ` — including the \`${impact.tokens.join(",")}\` join, which is what lifts the ceiling by ${impact.extraCreditsMax}`
+    : "";
 
   const perCall =
     min === max
       ? `${min} ${plural(min)}`
       : e.pricing.holdIsComputed
-        ? `${min}-${max} credits (metered — the ceiling is computed from your request, held, then refunded down to actual)`
-        : `${min}-${max} credits (metered — ${max} held, refunded down to actual)`;
+        ? `${min}-${max} credits (metered — the ceiling is computed from your request, held, then refunded down to actual${joinSuffix})`
+        : `${min}-${max} credits (metered — ${max} held, refunded down to actual${joinSuffix})`;
 
   if (pages === 1) return { min: totalMin, max: totalMax, text: perCall };
 
@@ -249,6 +334,16 @@ export const PRICING_SUMMARY = {
   metered: {
     count: REGISTRY_STATS.meteredPriced,
     note: `${REGISTRY_STATS.meteredPriced} endpoints are METERED: the charge is computed from the params you send. The API holds the ceiling (\`max_credits\`) up front and refunds down to the work actually done, so budget against \`max_credits\` and expect to be charged less.`,
+  },
+  row_joins: {
+    count: REGISTRY_STATS.rowJoinEndpoints,
+    note: `${REGISTRY_STATS.rowJoinEndpoints} endpoints accept an \`include=…\` token that joins a second source onto what they return — subscriber counts onto a video list, exact follower counts onto a people search, save counts onto a pin, the engagement block onto rows that ship without one. It is the main reason an endpoint's band is wide: the low end is the plain call and the high end is the fully joined page. (A further ${REGISTRY_STATS.hydratableEndpoints - REGISTRY_STATS.rowJoinEndpoints} endpoints — the Prism composites and the one-call dossiers — take an \`include\` that only picks which response blocks to build; that one is not a per-row charge.)`,
+    billing:
+      "A join holds a per-row ceiling up front and keeps a credit only for each row it actually filled from a fresh lookup. Rows served from the joined lookup's own cache, and rows it could not fill, are refunded. Read `data.hydration` on the response for the rows attempted, the credits held and kept, and the time the join added.",
+    how_to_check:
+      'Every row from "List pricing" and "List endpoints" carries `row_joins` (the tokens, what each fills in, and the ceiling) and `row_join_extra_credits_max`. Set `dryRun` to price the exact call you are about to make, with or without the join.',
+    worth_it:
+      "One joined call replaces a page read plus one lookup per row, at the same credits or fewer, in one request instead of N+1 — which is also why it is the fastest way to overspend if you leave it on by habit.",
   },
   free: {
     count: REGISTRY_STATS.freeEndpoints,

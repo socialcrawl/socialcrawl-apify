@@ -2,6 +2,7 @@ import { COHORT_ENDPOINTS, COHORT_PLATFORM } from "./data/cohorts.js";
 import { ENDPOINTS } from "./data/endpoints.js";
 import { MONITOR_ENDPOINTS, MONITOR_PLATFORM } from "./data/monitors.js";
 import { PLATFORMS } from "./data/platforms.js";
+import { hasRowJoin } from "./hydration.js";
 import type { Endpoint, HttpMethod, Platform } from "./types.js";
 
 /**
@@ -79,6 +80,15 @@ export function isPaginatable(e: Endpoint): boolean {
 }
 
 /**
+ * Every endpoint offering an `include=…` row join, in catalog order. These are
+ * the calls where the plain price and the billed price differ, so they are
+ * worth being able to list on their own.
+ */
+export function getHydratableEndpoints(): Endpoint[] {
+  return ALL_ENDPOINTS.filter(hasRowJoin);
+}
+
+/**
  * Free-text search across the whole catalog. With well over five hundred
  * endpoints, scanning one platform at a time is not a realistic way to find the
  * right call, so this ranks matches over the fields a person would search:
@@ -108,7 +118,17 @@ export function searchEndpoints(query: string, limit = 50): Endpoint[] {
     ]
       .join(" ")
       .toLowerCase();
-    const haystack = `${path} ${summary} ${description} ${paramNames}`;
+    // The registry's own topic labels — they catch the cross-cutting searches
+    // the path and prose miss ("ads" finding tiktok-ads/linkedin-ads/google-ads,
+    // "geo" finding the AI-visibility composite).
+    // Tags are hyphenated compounds (`tiktok-ads`, `linkedin-ads`), so match on
+    // their SEGMENTS: searching "ads" should reach every ad-library endpoint,
+    // not just whatever happens to contain the letters — `threads/post` does.
+    const tagSegments = new Set(
+      (e.tags ?? []).flatMap((t) => t.toLowerCase().split(/[-_]/)),
+    );
+    const tags = (e.tags ?? []).join(" ").toLowerCase();
+    const haystack = `${path} ${summary} ${description} ${paramNames} ${tags}`;
 
     if (!terms.every((t) => haystack.includes(t))) continue;
 
@@ -117,7 +137,12 @@ export function searchEndpoints(query: string, limit = 50): Endpoint[] {
       if (path === t) score += 100;
       else if (path.includes(t)) score += 25;
       if (summary.includes(t)) score += 10;
+      // A whole-segment tag hit beats an accidental path substring, which is
+      // the difference between "ads" returning the ad libraries and returning
+      // every Threads endpoint.
+      if (tagSegments.has(t)) score += 30;
       if (paramNames.includes(t)) score += 4;
+      else if (tags.includes(t)) score += 2;
       if (description.includes(t)) score += 1;
     }
     scored.push({ endpoint: e, score });

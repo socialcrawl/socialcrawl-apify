@@ -1,6 +1,6 @@
 {
   "title": "SocialCrawl — Unified Social Media Data API",
-  "description": "Call any of 571 SocialCrawl endpoints across 65 platforms, run a universal cross-platform search, trigger a Prism composite, drive the web-scraping suite, schedule monitors, or run an audience-filtered cohort query — all with your own SocialCrawl API key. Pick a platform and resource, add parameters, and run. The 'List'/'Search' actions need no key.",
+  "description": "Call any of 575 SocialCrawl endpoints across 65 platforms, run a universal cross-platform search, trigger a Prism composite, drive the web-scraping suite, schedule monitors, or run an audience-filtered cohort query — all with your own SocialCrawl API key. Pick a platform and resource, add parameters, and run. 28 endpoints also accept an `include=…` row join that fills a second source onto every row in the same call. The 'List'/'Search' actions need no key.",
   "type": "object",
   "schemaVersion": 1,
   "properties": {
@@ -14,7 +14,7 @@
     "action": {
       "title": "Action",
       "type": "string",
-      "description": "What the Actor should do. 'Run API request' is the default. Everything below it is free: the four 'Learn the API' actions and the credit ledger cost 0 credits (they read the API's own live surfaces, so they need a key but never charge), and the four 'Browse' actions answer from the Actor's bundled catalog and need no key at all. New to SocialCrawl? Start with 'Quickstart'.",
+      "description": "What the Actor should do. 'Run API request' is the default. Everything below it is free: the four 'Learn the API' actions and the credit ledger cost 0 credits (they read the API's own live surfaces, so they need a key but never charge), and the five 'Browse' actions answer from the Actor's bundled catalog and need no key at all. New to SocialCrawl? Start with 'Quickstart'. Sizing a big run? 'Browse: List pricing' and 'Browse: Row joins' between them tell you what every call can cost.",
       "editor": "select",
       "default": "request",
       "enum": [
@@ -27,6 +27,7 @@
         "listEndpoints",
         "searchEndpoints",
         "listPricing",
+        "listRowJoins",
         "checkBalance",
         "creditTransactions"
       ],
@@ -40,6 +41,7 @@
         "Browse: List endpoints for a platform (no key needed)",
         "Browse: Search all endpoints by keyword (no key needed)",
         "Browse: List pricing for endpoints (no key needed)",
+        "Browse: Row joins — endpoints where one call fills every row (no key needed)",
         "Check credit balance",
         "Credit ledger — every deduction and refund, with receipts (free)"
       ]
@@ -200,7 +202,7 @@
     "params": {
       "title": "Parameters",
       "type": "object",
-      "description": "Parameters as key–value pairs, e.g. {\"handle\": \"charlidamelio\"} for a TikTok profile, {\"url\": \"https://...\"} for comments, or {\"query\": \"electric cars\"} for Universal Search. Array and object values (a monitor's `alert_rules`, a cohort's `members` or `keywords`) keep their JSON types on POST/PUT/PATCH. Also carries `limit`/`request_id` for the credit-ledger action. Run 'List endpoints' to see every parameter with its type, allowed values, bounds and an example.",
+      "description": "Parameters as key–value pairs, e.g. {\"handle\": \"charlidamelio\"} for a TikTok profile, {\"url\": \"https://...\"} for comments, or {\"query\": \"electric cars\"} for Universal Search. On the 28 endpoints that support it, add {\"include\": \"engagement\"} (or profile / channel / details / saves / ad) to fill a second source onto every row in the SAME call — it bills only for the rows it fills, and replaces one follow-up request per row. Array and object values (a monitor's `alert_rules`, a cohort's `members` or `keywords`) keep their JSON types on POST/PUT/PATCH. Also carries `limit`/`request_id` for the credit-ledger action. Run 'List endpoints' to see every parameter with its type, allowed values, bounds and an example.",
       "editor": "json",
       "prefill": {
         "handle": "charlidamelio"
@@ -258,7 +260,7 @@
     "dryRun": {
       "title": "Dry run (price it, don't call it)",
       "type": "boolean",
-      "description": "Validate the request, resolve the exact endpoint and method, and report what it would cost — without calling the API or spending a single credit. Useful before a large auto-paginated run or a metered endpoint.",
+      "description": "Validate the request, resolve the exact endpoint and method, and report what it would cost — without calling the API or spending a single credit. It prices THIS call, not the endpoint: on a row-join endpoint that means the plain price unless your params actually ask for the join. Useful before a large auto-paginated run or a metered endpoint.",
       "editor": "checkbox",
       "default": false,
       "sectionCaption": "Advanced"

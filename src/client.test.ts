@@ -121,6 +121,195 @@ describe("formatHttpError", () => {
   });
 });
 
+/**
+ * 11/09/2026 customer report (MCP, same formatter pattern here): errors dropped
+ * the API's `request_id` and specific `error.message`, leaving nothing to quote
+ * to support. Every branch must pass the message, `details.reason` and the id on.
+ */
+describe("formatHttpError keeps the server's message, reason and request_id", () => {
+  const opts = { platform: "instagram", resource: "post/transcript" };
+  const envelope = (error: Record<string, unknown>, requestId?: string) =>
+    ({
+      success: false,
+      error,
+      credits_used: 0,
+      ...(requestId ? { request_id: requestId } : {}),
+      credits_remaining: 812,
+    }) as never;
+
+  it("404 RESOURCE_NOT_FOUND: server message, reason and request_id", () => {
+    const msg = formatHttpError(
+      404,
+      envelope(
+        {
+          type: "RESOURCE_NOT_FOUND",
+          message:
+            "The video is unavailable (deleted, private, or it never existed). You were not charged for this request.",
+          status: 404,
+          details: { reason: "video_gone" },
+        },
+        "req-404abc",
+      ),
+      opts,
+    );
+    expect(msg).toMatch(/Resource not found/);
+    expect(msg).toContain("The video is unavailable (deleted, private, or it never existed).");
+    expect(msg).toContain("You were not charged for this request.");
+    expect(msg).toContain("reason: video_gone");
+    expect(msg).toContain("request_id: req-404abc");
+    expect(msg).not.toContain("doesn't exist");
+  });
+
+  it("502: passes the upstream-failure message through with the request_id", () => {
+    const msg = formatHttpError(
+      502,
+      envelope(
+        {
+          type: "UPSTREAM_ERROR",
+          message:
+            "pinterest returned an error for this request and every available source failed. Your credits have been refunded. This is usually transient, retry after 30 seconds.",
+          status: 502,
+        },
+        "req-502def",
+      ),
+      { platform: "pinterest", resource: "search" },
+    );
+    expect(msg).toContain("pinterest returned an error for this request and every available source failed.");
+    expect(msg).toContain("request_id: req-502def");
+    expect(msg).not.toContain("reason:");
+  });
+
+  it("503: uses the server's cause for the outage", () => {
+    const msg = formatHttpError(
+      503,
+      envelope(
+        {
+          type: "SERVICE_UNAVAILABLE",
+          message: "instagram is momentarily rate-limited upstream. Retry after 30s. Your credits have been refunded.",
+          status: 503,
+        },
+        "req-503ghi",
+      ),
+      opts,
+    );
+    expect(msg).toContain("instagram is momentarily rate-limited upstream. Retry after 30s.");
+    expect(msg).toContain("request_id: req-503ghi");
+  });
+
+  it("429: says which limit was hit (rate window, not concurrency)", () => {
+    const msg = formatHttpError(
+      429,
+      envelope(
+        {
+          type: "RATE_LIMITED",
+          message:
+            "Request rate limit exceeded. Limit: 600 requests per minute. Honor the Retry-After header, then back off with jitter (see /docs/rate-limits).",
+          status: 429,
+        },
+        "req-429jkl",
+      ),
+      opts,
+    );
+    expect(msg).toContain("Limit: 600 requests per minute");
+    expect(msg).not.toContain("concurrent");
+    expect(msg).toContain("request_id: req-429jkl");
+  });
+
+  it("401: keeps the apiKey hint and adds the server's message and request_id", () => {
+    const msg = formatHttpError(
+      401,
+      envelope({ type: "INVALID_API_KEY", message: "API key not found, revoked, or expired.", status: 401 }, "req-401mno"),
+      opts,
+    );
+    expect(msg).toMatch(/Invalid API key/);
+    expect(msg).toContain("API key not found, revoked, or expired.");
+    expect(msg).toContain("`apiKey`");
+    expect(msg).toContain("request_id: req-401mno");
+  });
+
+  it("409 on a non-idempotency conflict: passes the cohort message through instead of blaming the key", () => {
+    const msg = formatHttpError(
+      409,
+      envelope(
+        {
+          type: "COHORT_IDENTITY_CONFLICT",
+          message: "The normalized identity is already assigned to another external ID.",
+          status: 409,
+        },
+        "req-409pqr",
+      ),
+      { platform: "cohorts", resource: "members" },
+    );
+    expect(msg).toContain("already assigned to another external ID");
+    expect(msg).not.toContain("Idempotency-Key");
+    expect(msg).toContain("request_id: req-409pqr");
+  });
+
+  it("non-JSON body: falls back to the X-Request-Id header", () => {
+    const msg = formatHttpError(502, null, opts, "req-hdr123");
+    expect(msg).toMatch(/Upstream error/);
+    expect(msg).toContain("request_id: req-hdr123");
+  });
+
+  it("prefers the body's request_id over the header", () => {
+    const msg = formatHttpError(
+      502,
+      envelope({ type: "UPSTREAM_ERROR", message: "tiktok returned an error.", status: 502 }, "req-body1"),
+      opts,
+      "req-header1",
+    );
+    expect(msg).toContain("request_id: req-body1");
+    expect(msg).not.toContain("req-header1");
+  });
+
+  it("no request_id anywhere: omits it rather than printing a placeholder", () => {
+    const msg = formatHttpError(
+      502,
+      envelope({ type: "UPSTREAM_ERROR", message: "tiktok returned an error.", status: 502 }),
+      opts,
+    );
+    expect(msg).toContain("tiktok returned an error.");
+    expect(msg).not.toContain("request_id");
+    expect(msg).not.toContain("undefined");
+    expect(msg).not.toContain("null");
+  });
+});
+
+describe("callApi surfaces the request_id on errors", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const config = { apiKey: "sc_test", baseUrl: "https://api.test" };
+
+  it("reads X-Request-Id when the error body is not JSON", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("upstream connect error", { status: 503, headers: { "X-Request-Id": "req-cl-hdr" } })),
+    );
+    const r = await callApi(config, { platform: "tiktok", resource: "profile" });
+    expect(r.ok).toBe(false);
+    expect(r.errorMessage).toContain("request_id: req-cl-hdr");
+  });
+
+  it("carries the body's request_id and server message", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              success: false,
+              error: { type: "UPSTREAM_ERROR", message: "youtube returned an error for this request.", status: 502 },
+              request_id: "req-cl-body",
+            }),
+            { status: 502 },
+          ),
+      ),
+    );
+    const r = await callApi(config, { platform: "youtube", resource: "video" });
+    expect(r.errorMessage).toContain("youtube returned an error for this request.");
+    expect(r.errorMessage).toContain("request_id: req-cl-body");
+  });
+});
+
 describe("callApi", () => {
   afterEach(() => vi.unstubAllGlobals());
 
